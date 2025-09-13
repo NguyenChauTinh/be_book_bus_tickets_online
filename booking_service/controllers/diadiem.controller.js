@@ -5,6 +5,11 @@ import diaDiem from "../models/diaDiem.model.js";
 
 export const createDiaDiem = async (req, res, next) => {
   try {
+    // const io = req.app.get("socketio");
+    // if (!io) {
+    //   console.error("Socket.IO not initialized in diadiemController");
+    //   return res.status(500).json({ error: "Socket.IO not initialized" });
+    // }
     const { maDiaDiem, tenDiaDiem, ghiChu, active } = req.body;
 
     const existingDiaDiem = await diaDiem.findOne({
@@ -24,6 +29,8 @@ export const createDiaDiem = async (req, res, next) => {
         active,
       },
     ]);
+    console.log("Emitting newDiadiem:", newDiaDiem);
+    // io.emit("newDiadiem", newDiaDiem);
 
     res.status(201).json({
       status: "success",
