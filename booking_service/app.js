@@ -4,6 +4,7 @@ import errorMiddleware from "./middlewares/error.middleware.js";
 import cookieParser from "cookie-parser";
 import { PORT } from "./config/env.js";
 import connectDB from "./database/mongodb.js";
+import diaDiemRouter from "./routes/diaDiem.routes.js";
 
 const app = express();
 
@@ -17,6 +18,8 @@ app.use(
     credentials: true,
   })
 );
+
+app.use("/api/v1/dia-diem", diaDiemRouter);
 
 app.use(errorMiddleware);
 
