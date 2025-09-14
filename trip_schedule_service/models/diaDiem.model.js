@@ -12,6 +12,9 @@ const diadiemSchema = new mongoose.Schema(
       type: String,
       required: [true, "Tên địa điểm là bắt buộc"],
     },
+    diaChi: {
+      type: String,
+    },
     ghiChu: {
       type: String,
     },
