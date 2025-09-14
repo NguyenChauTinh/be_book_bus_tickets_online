@@ -2,13 +2,11 @@ import mongoose from "mongoose";
 
 const diadiemSchema = new mongoose.Schema(
   {
-    id: {
-      type: mongoose.Schema.Types.ObjectId,
-      default: null,
-    },
     maDiaDiem: {
       type: String,
       required: [true, "Mã địa điểm là bắt buộc"],
+      unique: true,
+      trim: true,
     },
     tenDiaDiem: {
       type: String,
@@ -25,6 +23,6 @@ const diadiemSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const diadiem = mongoose.model("diadiem", diadiemSchema);
+const diadiem = mongoose.model("DiaDiem", diadiemSchema);
 
 export default diadiem;

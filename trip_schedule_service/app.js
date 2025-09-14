@@ -5,6 +5,8 @@ import cookieParser from "cookie-parser";
 import { PORT } from "./config/env.js";
 import connectDB from "./database/mongodb.js";
 import diaDiemRouter from "./routes/diaDiem.routes.js";
+import tuyenDuongRouter from "./routes/tuyenDuong.routes.js";
+import lichChayRouter from "./routes/lichChay.routes.js";
 
 const app = express();
 
@@ -20,6 +22,8 @@ app.use(
 );
 
 app.use("/api/v1/dia-diem", diaDiemRouter);
+app.use("/api/v1/tuyen-duong", tuyenDuongRouter);
+app.use("/api/v1/lich-chay", lichChayRouter);
 
 app.use(errorMiddleware);
 
