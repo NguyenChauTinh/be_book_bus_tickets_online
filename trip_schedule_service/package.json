@@ -1,5 +1,5 @@
 {
-  "name": "booking_service",
+  "name": "trip_schedule_service",
   "version": "1.0.0",
   "scripts": {
     "start": "node app",
