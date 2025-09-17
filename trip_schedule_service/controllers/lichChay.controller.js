@@ -125,3 +125,18 @@ export const deleteLichChay = async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 };
+
+export const toggleActiveLichChay = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const lich = await LichChay.findById(id);
+    if (!lich) {
+      return res.status(404).json({ error: "Không tìm thấy lịch chạy" });
+    }
+    lich.active = !lich.active;
+    await lich.save();
+    res.json({ message: "Thay đổi trạng thái lịch chạy thành công", lich });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};

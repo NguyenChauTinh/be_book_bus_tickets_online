@@ -6,6 +6,7 @@ import {
   updateDiaDiem,
   deleteDiaDiem,
   toggleActiveDiaDiem,
+  getActiveDiaDiem,
 } from "../controllers/diaDiem.controller.js";
 
 const router = Router();
@@ -16,5 +17,6 @@ router.get("/lay-dia-diem/:id", getDiaDiemById);
 router.put("/cap-nhat-dia-diem/:id", updateDiaDiem);
 router.delete("/xoa-dia-diem/:id", deleteDiaDiem);
 router.patch("/toggle-active-dia-diem/:id", toggleActiveDiaDiem);
+router.get("/lay-dia-diem-active", getActiveDiaDiem);
 
 export default router;

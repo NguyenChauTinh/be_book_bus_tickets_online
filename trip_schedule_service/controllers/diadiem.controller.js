@@ -137,6 +137,16 @@ export const deleteDiaDiem = async (req, res, next) => {
   }
 };
 
+// Lấy địa điểm active = true
+export const getActiveDiaDiem = async (req, res, next) => {
+  try {
+    const activeDiaDiem = await DiaDiem.find({ active: true });
+    res.json(activeDiaDiem);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // diadiem active, thay doi khi nhan nut xoa tren giao dien giua true hoac false
 export const toggleActiveDiaDiem = async (req, res, next) => {
   console.log("Toggle Active DiaDiem called");
