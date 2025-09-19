@@ -5,7 +5,11 @@ import { PORT } from "./config/env.js";
 import connectToDatabase from "./database/mongodb.js";
 import cookieParser from "cookie-parser";
 import errorMiddleware from "./middlewares/error.middleware.js";
-import authRouter from "./routes/auth.routes.js";
+import nhanVienRouter from "./routes/nhanVien.route.js";
+import taiKhoanRouter from "./routes/taiKhoan.route.js";
+import vaiTroRouter from "./routes/vaiTro.route.js";
+import phanQuyenRouter from "./routes/phanQuyen.route.js";
+
 
 const app = express();
 app.use(express.json());
@@ -14,20 +18,19 @@ app.use(cookieParser());
 
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: "http://localhost:3000",
     credentials: true,
   })
 );
 
-app.use("/api/v1/auth", authRouter);
-app.use(
-  cors({
-    origin: "http://localhost:5173",
-    credentials: true,
-  })
-);
 
-app.use("/api/v1/auth", authRouter);
+app.use('/api/v1/nhan-vien', nhanVienRouter);
+
+app.use('/api/v1/tai-khoan', taiKhoanRouter);
+
+app.use('/api/v1/vai-tro', vaiTroRouter);
+
+app.use('/api/v1/phan-quyen', phanQuyenRouter);
 
 app.use(errorMiddleware);
 
