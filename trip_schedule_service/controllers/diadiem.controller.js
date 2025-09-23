@@ -1,8 +1,4 @@
-import axios from "axios";
-import { PORT } from "../config/env.js";
-
 import DiaDiem from "../models/diaDiem.model.js";
-import diadiem from "../models/diaDiem.model.js";
 
 export const createDiaDiem = async (req, res, next) => {
   try {
