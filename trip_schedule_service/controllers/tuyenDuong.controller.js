@@ -1,5 +1,6 @@
 import TuyenDuong from "../models/tuyenDuong.model.js";
 import ChiTietTuyenDuong from "../models/chiTietTuyenDuong.model.js";
+import mongoose from "mongoose";
 
 export const createTuyenDuong = async (req, res) => {
   try {
@@ -12,8 +13,6 @@ export const createTuyenDuong = async (req, res) => {
       chiTiet,
     } = req.body;
 
-    console.log(req.body);
-
     // tạo tuyến đường
     const tuyen = await TuyenDuong.create({
       maTuyen,
@@ -24,11 +23,13 @@ export const createTuyenDuong = async (req, res) => {
     });
 
     // nếu có chi tiết kèm theo
-    if (chiTiet?.length) {
+    if (Array.isArray(chiTiet) && chiTiet.length > 0) {
       const chiTietDocs = await ChiTietTuyenDuong.insertMany(
         chiTiet.map((ct) => ({
           tuyenDuong: tuyen._id,
-          diaDiem: mongoose.Types.ObjectId(ct.diaDiem?._id || ct.diaDiem), // lấy _id trong object hoặc string id
+          diaDiem: new mongoose.Types.ObjectId(
+            typeof ct.diaDiem === "object" ? ct.diaDiem._id : ct.diaDiem
+          ),
           thuTu: ct.thuTu,
           loaiDiem: ct.loaiDiem,
           khoangCach: ct.khoangCach,
@@ -40,7 +41,12 @@ export const createTuyenDuong = async (req, res) => {
       await tuyen.save();
     }
 
-    res.status(201).json(tuyen);
+    // trả về đầy đủ tuyến đường + chi tiết
+    const populated = await TuyenDuong.findById(tuyen._id).populate(
+      "chiTietTuyen"
+    );
+
+    res.status(201).json(populated);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }

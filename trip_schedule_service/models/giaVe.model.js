@@ -1,22 +1,44 @@
-const mongoose = require("mongoose");
+// models/giaVe.model.js
+import mongoose from "mongoose";
 
-const GiaVeSchema = new mongoose.Schema(
+// Schema con: Chi tiết giá vé
+const chiTietGiaVeSchema = new mongoose.Schema(
   {
-    maGiaVe: { type: String, required: true, unique: true }, // Mã giá vé
-    tenGiaVe: { type: String, required: true }, // Tên giá vé
-    tuanSuat: [{ type: String }], // Ví dụ: ["Thứ 2", "Thứ 6"]
+    diemDi: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ChiTietTuyenDuong",
+      required: true,
+    },
+    diemDen: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ChiTietTuyenDuong",
+      required: true,
+    },
+    soTienThanhToan: { type: Number, required: true },
+  },
+  { _id: true } // để mỗi chi tiết có id riêng trong mảng
+);
+
+// Schema chính: Giá vé
+const giaVeSchema = new mongoose.Schema(
+  {
+    maGiaVe: { type: String, required: true, unique: true },
+    tenGiaVe: { type: String, required: true },
+    tuanSuat: {
+      type: String,
+      enum: ["all", "weekdays", "oddEven", "specific"],
+      required: true,
+    },
+    ngayApDung: [{ type: String }], // mảng ngày áp dụng
     thoiGianBatDau: { type: Date, required: true },
     thoiGianKetThuc: { type: Date, required: true },
     ghiChu: { type: String },
 
-    // Quan hệ 1-1 với tuyến đường
     tuyenDuong: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "TuyenDuong",
       required: true,
     },
-
-    // Quan hệ 1-1 với loại xe
     loaiXe: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "LoaiXe",
@@ -24,10 +46,10 @@ const GiaVeSchema = new mongoose.Schema(
     },
 
     active: { type: Boolean, default: true },
+
+    chiTietGiaVe: [chiTietGiaVeSchema], // mảng embed
   },
   { timestamps: true }
 );
 
-module.exports = mongoose.model("GiaVe", GiaVeSchema);
-
-export default giaVe;
+export default mongoose.model("GiaVe", giaVeSchema);

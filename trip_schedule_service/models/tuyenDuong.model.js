@@ -1,4 +1,3 @@
-// models/tuyenDuong.model.js
 import mongoose from "mongoose";
 
 const tuyenDuongSchema = new mongoose.Schema(
