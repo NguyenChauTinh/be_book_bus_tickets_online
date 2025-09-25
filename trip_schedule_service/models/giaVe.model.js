@@ -29,7 +29,10 @@ const giaVeSchema = new mongoose.Schema(
       enum: ["all", "weekdays", "oddEven", "specific"],
       required: true,
     },
-    ngayApDung: [{ type: String }], // mảng ngày áp dụng
+    ngayApDung: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
     thoiGianBatDau: { type: Date, required: true },
     thoiGianKetThuc: { type: Date, required: true },
     ghiChu: { type: String },

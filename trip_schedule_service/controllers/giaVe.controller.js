@@ -14,23 +14,19 @@ export const createGiaVe = async (req, res) => {
 // ✅ Lấy tất cả giá vé
 export const getAllGiaVe = async (req, res) => {
   try {
-    const giaVes = await GiaVe.find()
-      .populate("chiTietGiaVe.diemDi")
-      .populate("chiTietGiaVe.diemDen");
+    const giaVes = await GiaVe.find();
+
     res.json(giaVes);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-// ✅ Lấy 1 giá vé theo ID
+// Lấy 1 giá vé theo ID
 export const getGiaVeById = async (req, res) => {
   try {
-    const giaVe = await GiaVe.findById(req.params.id)
-      .populate("tuyenDuong")
-      .populate("loaiXe")
-      .populate("chiTietGiaVe.diemDi")
-      .populate("chiTietGiaVe.diemDen");
+    const giaVe = await GiaVe.findById(req.params.id);
+
     if (!giaVe) return res.status(404).json({ error: "Không tìm thấy giá vé" });
     res.json(giaVe);
   } catch (err) {
@@ -89,6 +85,18 @@ export const deleteChiTietGiaVe = async (req, res) => {
     );
     await giaVe.save();
 
+    res.json(giaVe);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const toggleActiveStatus = async (req, res) => {
+  try {
+    const giaVe = await GiaVe.findById(req.params.id);
+    if (!giaVe) return res.status(404).json({ error: "Không tìm thấy giá vé" });
+    giaVe.active = !giaVe.active;
+    await giaVe.save();
     res.json(giaVe);
   } catch (err) {
     res.status(500).json({ error: err.message });
