@@ -1,19 +1,19 @@
 import { Router } from "express";
 import {
-  createLichChay,
-  getLichChay,
+  createLichChayMoi,
+  getDanhSachLichChay,
   updateLichChay,
-  deleteLichChay,
-  toggleActiveLichChay,
+  updateTrangThaiLichChay,
+  updateTrangThaiLine
 } from "../controllers/lichChay.controller.js";
 
-const router = Router();
+const lichChayRouter = Router();
 
 // Lịch chạy
-router.post("/tao-lich-chay", createLichChay);
-router.get("/lay-lich-chay/:id", getLichChay);
-router.put("/cap-nhat-lich-chay/:id", updateLichChay);
-router.delete("/xoa-lich-chay/:id", deleteLichChay);
-router.patch("/chuyen-trang-thai-lich-chay/:id", toggleActiveLichChay);
-
-export default router;
+lichChayRouter.get("/", getDanhSachLichChay);
+lichChayRouter.post("/", createLichChayMoi);
+lichChayRouter.put("/:id", updateLichChay);
+lichChayRouter.patch("/status/:id", updateTrangThaiLichChay);
+lichChayRouter.patch('/update-line-status/:lichChayId/:maLine', updateTrangThaiLine);
+// lichChayRouter.put('/:maLichChay/lines/:maLine', updateLichChayLine); 
+export default lichChayRouter;

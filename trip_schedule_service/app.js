@@ -9,6 +9,7 @@ import tuyenDuongRouter from "./routes/tuyenDuong.routes.js";
 import lichChayRouter from "./routes/lichChay.routes.js";
 import loaiXeRouter from "./routes/loaiXe.route.js";
 import xeRouter from "./routes/xe.route.js";
+import chuyenXeRouter from "./routes/chuyenXe.route.js";
 
 const app = express();
 
@@ -26,6 +27,7 @@ app.use(
 app.use("/api/v1/dia-diem", diaDiemRouter);
 app.use("/api/v1/tuyen-duong", tuyenDuongRouter);
 app.use("/api/v1/lich-chay", lichChayRouter);
+app.use("/api/v1/chuyen-xe", chuyenXeRouter);
 app.use("/api/v1/loai-xe", loaiXeRouter);
 app.use("/api/v1/xe", xeRouter);
 
