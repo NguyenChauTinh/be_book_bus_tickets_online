@@ -2,40 +2,42 @@ import DiaDiem from "../models/diaDiem.model.js";
 
 export const createDiaDiem = async (req, res, next) => {
   try {
-    // const io = req.app.get("socketio");
-    // if (!io) {
-    //   console.error("Socket.IO not initialized in diadiemController");
-    //   return res.status(500).json({ error: "Socket.IO not initialized" });
-    // }
-    const { maDiaDiem, tenDiaDiem, diaChi, ghiChu, active } = req.body;
-
-    const existingDiaDiem = await DiaDiem.findOne({
-      $or: [{ maDiaDiem: maDiaDiem }],
-    });
-    if (existingDiaDiem) {
-      const error = new Error("Mã địa điểm đã tồn tại");
-      error.statusCode = 409;
-      throw error;
+    const io = req.app.get("socketio");
+    if (!io) {
+      console.error("Socket.IO not initialized in diadiemController");
+      return res.status(500).json({ error: "Socket.IO not initialized" });
     }
 
-    const newDiaDiem = await DiaDiem.create([
-      {
-        maDiaDiem,
-        tenDiaDiem,
-        ghiChu,
-        active,
-        diaChi,
-      },
-    ]);
-    console.log("Emitting newDiadiem:", newDiaDiem);
-    // io.emit("newDiadiem", newDiaDiem);
+    const { maDiaDiem, tenDiaDiem, diaChi, ghiChu, active } = req.body;
 
+    // Kiểm tra trùng mã
+    const existingDiaDiem = await DiaDiem.findOne({ maDiaDiem });
+    if (existingDiaDiem) {
+      return res.status(409).json({
+        success: false,
+        message: "Mã địa điểm đã tồn tại",
+      });
+    }
+
+    // Tạo mới (không cần array)
+    const newDiaDiem = await DiaDiem.create({
+      maDiaDiem,
+      tenDiaDiem,
+      ghiChu,
+      active,
+      diaChi,
+    });
+
+    console.log("Emitting diaDiem:created:", newDiaDiem);
+
+    // Emit real-time cho tất cả client
+    io.emit("diaDiem:created", newDiaDiem);
+
+    // Trả response chuẩn cho client gọi API
     res.status(201).json({
-      status: "success",
-      message: "Dia diem created successfully",
-      data: {
-        diaDiem: newDiaDiem,
-      },
+      success: true,
+      message: "Địa điểm created successfully",
+      data: newDiaDiem,
     });
   } catch (error) {
     res.status(error.statusCode || 500).json({
