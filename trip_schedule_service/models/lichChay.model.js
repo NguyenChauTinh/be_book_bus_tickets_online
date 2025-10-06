@@ -1,22 +1,86 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
-const lichChaySchema = new mongoose.Schema(
-  {
-    tuyenDuong: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "TuyenDuong",
-      required: true,
-    },
-    maLich: { type: String, required: true, unique: true },
-    tenLich: { type: String, required: true },
-    thoiGianBatDau: { type: Date, required: true },
-    thoiGianKetThuc: { type: Date, required: true },
-    active: { type: Boolean, default: true },
-    chiTietLich: [
-      { type: mongoose.Schema.Types.ObjectId, ref: "LichChayChiTiet" },
-    ],
+const TanSuatSchema = new mongoose.Schema({
+  loaiTanSuat: {
+    type: String,
+    enum: ['HANG_NGAY', 'THEO_THU_TRONG_TUAN', 'THEO_NGAY_LE_CHAN', 'THEO_NGAY_CU_THE'],
+    default: 'HANG_NGAY',
   },
-  { timestamps: true }
-);
+  giaTri: {
+    type: mongoose.Schema.Types.Mixed,
+  },
+});
 
-export default mongoose.model("LichChay", lichChaySchema);
+const LichChayChiTietSchema = new mongoose.Schema({
+  maLine: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  gioKhoiHanh: {
+    type: String,
+    required: true,
+  },
+  loaiXe: { 
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'LoaiXe',
+    required: true,
+  },
+  loaiDichVu: {
+    type: String,
+    enum: ['TUYEN_CO_DINH', 'XE_HOP_DONG'],
+    required: true,
+  },
+  tanSuat: {
+    type: TanSuatSchema,
+    required: true,
+  },
+  active: {
+    type: Boolean,
+    default: true,
+  },
+  ghiChu: {
+    type: String,
+  }
+});
+
+const LichChayMasterSchema = new mongoose.Schema({
+  maLichChay: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true,
+  },
+  tenLichChay: {
+    type: String,
+    required: true,
+  },
+  tuyenDuong: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'TuyenDuong',
+    required: true,
+  },
+  ngayBatDau: {
+    type: Date,
+    required: true,
+  },
+  ngayKetThuc: {
+    type: Date,
+    required: true,
+  },
+  ghiChu: {
+    type: String,
+  },
+  trangThai: {
+    type: Boolean,
+    default: true,
+  },
+  lines: {
+    type: [LichChayChiTietSchema],
+    default: [],
+  },
+}, { timestamps: true });
+
+const LichChayMaster = mongoose.model('LichChay', LichChayMasterSchema);
+
+export default LichChayMaster;

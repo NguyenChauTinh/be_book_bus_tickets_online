@@ -16,7 +16,7 @@ export const layDanhSachXe = async (req, res) => {
 
 export const layXeTheoId = async (req, res) => {
     try {
-        const xe = await Xe.findById(req.params.id).populate('loaiXe');
+        const xe = await Xe.findById(req.params.id);
         if (!xe) {
             return res.status(404).json({ success: false, message: 'Không tìm thấy xe.' });
         }

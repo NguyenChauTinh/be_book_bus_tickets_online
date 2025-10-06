@@ -23,6 +23,6 @@ const GheSchema = new mongoose.Schema({
         type: Boolean,
         default: true,
     },
-});
+},  { _id: true } );
 
 export default GheSchema;
