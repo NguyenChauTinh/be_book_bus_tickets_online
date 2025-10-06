@@ -64,6 +64,9 @@ export const updateTuyenDuong = async (req, res) => {
       chiTiet,
     } = req.body;
 
+    console.log("PARAM:", req.params);
+    console.log("BODY:", req.body);
+
     const tuyen = await TuyenDuong.findById(id);
     if (!tuyen) return res.status(404).json({ error: "Không tìm thấy tuyến" });
 
@@ -82,7 +85,9 @@ export const updateTuyenDuong = async (req, res) => {
       const chiTietDocs = await ChiTietTuyenDuong.insertMany(
         chiTiet.map((ct) => ({
           tuyenDuong: tuyen._id,
-          diaDiem: mongoose.Types.ObjectId(ct.diaDiem?._id || ct.diaDiem), // object._id hoặc string
+          diaDiem: mongoose.isValidObjectId(ct.diaDiem?._id || ct.diaDiem)
+            ? new mongoose.Types.ObjectId(ct.diaDiem?._id || ct.diaDiem)
+            : null,
           thuTu: ct.thuTu,
           loaiDiem: ct.loaiDiem,
           khoangCach: ct.khoangCach,
@@ -99,6 +104,7 @@ export const updateTuyenDuong = async (req, res) => {
     );
     res.json(updated);
   } catch (err) {
+    console.error("❌ Lỗi cập nhật tuyến:", err);
     res.status(400).json({ error: err.message });
   }
 };
