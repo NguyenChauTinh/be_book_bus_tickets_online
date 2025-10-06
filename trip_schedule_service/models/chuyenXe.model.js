@@ -4,16 +4,15 @@ const ChuyenXeSchema = new mongoose.Schema({
   maChuyenXe: {
     type: String,
     required: true,
-    unique: true,
     trim: true,
   },
-  maLichChay: {
+  maLichChay: { 
     type: String,
-    required: true,
+    default: null,
   },
-  maLine: {
+  maLine: { 
     type: String,
-    required: true,
+    default: null,
   },
   tuyenDuong: {
     type: String,
@@ -27,15 +26,15 @@ const ChuyenXeSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  loaiXe: {
+  loaiXe: { 
     type: mongoose.Schema.Types.ObjectId,
     ref: 'LoaiXe',
-    required: true,
+    required: true
   },
   loaiDichVu: {
     type: String,
     enum: ['TUYEN_CO_DINH', 'XE_HOP_DONG'],
-    required: true,
+    required: true
   },
   xe: {
     type: mongoose.Schema.Types.ObjectId,
@@ -44,21 +43,31 @@ const ChuyenXeSchema = new mongoose.Schema({
   },
   laiXe: {
     type: String,
-    default: null
+    default: null 
   },
   phuXe: {
     type: String,
-    default: null
+    default: null 
   },
-    ghiChu: {
+  ghiChu: {
     type: String,
-    default: null
+  },
+  sotai: {
+    type: String,
   },
   trangThai: {
     type: String,
     enum: ['CHUA_XUAT_BEN', 'DA_XUAT_BEN', 'HUY_CHUYEN'],
     default: 'CHUA_XUAT_BEN',
   },
+  thoiGianXuatBenThucTe: {
+    type: Date,
+    default: null,
+  },
+  thoiGianHuyChuyen: {
+    type: Date,
+    default: null,
+  }
 }, { timestamps: true });
 
 const ChuyenXe = mongoose.model('ChuyenXe', ChuyenXeSchema);

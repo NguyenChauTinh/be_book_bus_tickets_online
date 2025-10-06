@@ -95,6 +95,7 @@ const createChuyenXeHangLoat = async (masterSchedule, linesToProcess = masterSch
 export const createLichChayMoi = async (req, res) => {
   try {
     const newSchedule = new LichChayMaster(req.body);
+    console.log("Body =", req.body);
     const savedSchedule = await newSchedule.save();
     await createChuyenXeHangLoat(savedSchedule);
 
@@ -152,7 +153,7 @@ export const updateLichChay = async (req, res) => {
                 {
                     maLichChay: updatedSchedule.maLichChay,
                     maLine: line.maLine,
-                    trangThai: { $in: ['CHUA_XUAT_BEN', 'DA_TAO'] },
+                    trangThai: { $in: ['CHUA_XUAT_BEN'] },
                     ngayKhoiHanh: { $gte: today }
                 },
                 {
@@ -186,7 +187,8 @@ export const updateTrangThaiLichChay = async (req, res) => {
             id,
             { 
                 trangThai: trangThaiMoi,
-                $set: { 'lines.$[].active': false } 
+                $set: { 'lines.$[].active': false },
+                thoiGianHuyChuyen : new Date()
             },
             { new: true } 
         );
@@ -207,7 +209,8 @@ export const updateTrangThaiLichChay = async (req, res) => {
             {
                 $set: {
                     trangThai: 'HUY_CHUYEN',
-                    ghiChu: ghiChuHuy
+                    ghiChu: ghiChuHuy,
+                    thoiGianHuyChuyen : new Date()
                 }
             }
         );
@@ -275,7 +278,8 @@ export const updateTrangThaiLine = async (req, res) => {
                 {
                     $set: {
                         trangThai: 'HUY_CHUYEN',
-                        ghiChu: 'Tự động hủy do Line lịch chạy bị vô hiệu hóa.'
+                        ghiChu: 'Tự động hủy do Line lịch chạy bị vô hiệu hóa.',
+                        thoiGianHuyChuyen : new Date()
                     }
                 }
             );

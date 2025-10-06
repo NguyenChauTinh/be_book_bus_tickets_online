@@ -4,7 +4,6 @@ const TanSuatSchema = new mongoose.Schema({
   loaiTanSuat: {
     type: String,
     enum: ['HANG_NGAY', 'THEO_THU_TRONG_TUAN', 'THEO_NGAY_LE_CHAN', 'THEO_NGAY_CU_THE'],
-    required: true,
     default: 'HANG_NGAY',
   },
   giaTri: {
