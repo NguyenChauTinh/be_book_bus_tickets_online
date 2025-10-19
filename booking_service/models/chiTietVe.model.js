@@ -3,7 +3,20 @@
 import mongoose from 'mongoose';
 
 const ChiTietVeSchema = new mongoose.Schema({
-    choNgoi: {
+    chuyenXe: {
+            type: String, 
+            required: true,
+            trim: true,
+        },
+    tenKhachHang: { 
+        type: String, 
+        required: true 
+    },
+    soDienThoai: { 
+        type: String, 
+        required: true 
+    },
+    maChoNgoi: {
         type: String,
         required: true,
         trim: true,
@@ -42,10 +55,10 @@ const ChiTietVeSchema = new mongoose.Schema({
         type: Number,
         default: 0,
     },
-    hinhThucThanhToan: {
+   hinhThucThanhToan: {
         type: String,
         trim: true,
-        default: 'CHUA_THANH_TOAN',
+        default: null,
     },
 
     ghiChu: {

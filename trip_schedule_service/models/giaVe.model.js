@@ -1,25 +1,24 @@
-// models/giaVe.model.js
 import mongoose from "mongoose";
 
-// Schema con: Chi tiết giá vé
 const chiTietGiaVeSchema = new mongoose.Schema(
   {
-    diemDi: {
+    tuyenDuong: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "ChiTietTuyenDuong",
+      ref: "TuyenDuong",
       required: true,
     },
-    diemDen: {
+    loaiXe: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "ChiTietTuyenDuong",
+      ref: "LoaiXe",
       required: true,
     },
+    
     soTienThanhToan: { type: Number, required: true },
+    active: { type: Boolean, default: true },
   },
-  { _id: true } // để mỗi chi tiết có id riêng trong mảng
+  { _id: true }
 );
 
-// Schema chính: Giá vé
 const giaVeSchema = new mongoose.Schema(
   {
     maGiaVe: { type: String, required: true, unique: true },
@@ -36,21 +35,8 @@ const giaVeSchema = new mongoose.Schema(
     thoiGianBatDau: { type: Date, required: true },
     thoiGianKetThuc: { type: Date, required: true },
     ghiChu: { type: String },
-
-    tuyenDuong: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "TuyenDuong",
-      required: true,
-    },
-    loaiXe: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "LoaiXe",
-      required: true,
-    },
-
     active: { type: Boolean, default: true },
-
-    chiTietGiaVe: [chiTietGiaVeSchema], // mảng embed
+    chiTietGiaVe: [chiTietGiaVeSchema],
   },
   { timestamps: true }
 );

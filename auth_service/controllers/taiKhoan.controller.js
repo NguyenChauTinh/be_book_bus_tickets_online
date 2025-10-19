@@ -12,7 +12,7 @@ const signToken = (id, tenTaiKhoan, nhanVienId) => {
 
 export const dangKy = async (req, res) => {
     try {
-        const { tenTaiKhoan, matKhau, nhanVien, vaiTro } = req.body;
+       const { tenTaiKhoan, matKhau, nhanVien, vaiTro, donViCongTac } = req.body;
 
         const taiKhoanDaTonTai = await TaiKhoan.findOne({ tenTaiKhoan });
         if (taiKhoanDaTonTai) {
@@ -34,12 +34,15 @@ export const dangKy = async (req, res) => {
             matKhau,
             nhanVien,
             vaiTro,
+            donViCongTac,
         });
 
         const token = signToken(
             taiKhoanMoi._id,
             taiKhoanMoi.tenTaiKhoan,
-            taiKhoanMoi.nhanVien
+            taiKhoanMoi.nhanVien,
+            taiKhoanMoi.donViCongTac,
+            taiKhoanMoi.vaiTro
         );
 
         res.status(201).json({
@@ -99,7 +102,7 @@ export const dangNhap = async (req, res) => {
 export const chinhSuaTaiKhoan = async (req, res) => {
     try {
         const { id } = req.params;
-        const { tenTaiKhoan, matKhau, trangThai, vaiTro } = req.body;
+        const { tenTaiKhoan, matKhau, trangThai, vaiTro, donViCongTac } = req.body;
 
         const taiKhoan = await TaiKhoan.findById(id);
 
@@ -127,6 +130,9 @@ export const chinhSuaTaiKhoan = async (req, res) => {
 
         if (vaiTro !== undefined) {
             taiKhoan.vaiTro = vaiTro;
+        }
+        if (donViCongTac) {
+            taiKhoan.donViCongTac = donViCongTac;
         }
         
         taiKhoan.trangThai = trangThai !== undefined ? trangThai : taiKhoan.trangThai;

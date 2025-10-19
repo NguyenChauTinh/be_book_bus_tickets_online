@@ -1,22 +1,41 @@
 import express from 'express';
 import {
-    getTicketsByChuyenXeId,
     createTicket,
-    updateTicketDetails,
-    updateTicketDetailStatus,
+    getTicketsByChuyenXeId,
+    getTicketById,
     searchTickets,
+    addDetailToTicket,
+    updateMultipleTicketDetails,
+    recordPayment,
+    cancelMultipleTicketDetails,
+    unifiedTransferOrSwapDetails,
 } from '../controllers/veXe.controller.js';
 
-const router = express.Router();
+const veXeRouter = express.Router();
 
-router.get('/chuyen-xe/:chuyenXeId', getTicketsByChuyenXeId);
+// === CÁC ROUTE VỀ VÉ MASTER ===
+veXeRouter.post('/', createTicket);
+veXeRouter.get('/tim-kiem', searchTickets);
+veXeRouter.get('/chuyen-xe/:chuyenXeId', getTicketsByChuyenXeId);
+veXeRouter.get('/:ticketId', getTicketById);
 
-router.post('/', createTicket);
+// === CÁC ROUTE THAO TÁC TRÊN CHI TIẾT VÉ (SUB-DOCUMENTS) ===
 
-router.put('/:ticketId/details', updateTicketDetails);
+// Thêm một hoặc nhiều chi tiết vé vào vé master đã có
+veXeRouter.post('/:ticketId/details', addDetailToTicket);
 
-router.patch('/:ticketId/chi-tiet/:chiTietId/trang-thai', updateTicketDetailStatus);
+// Cập nhật thông tin cho NHIỀU chi tiết vé cùng lúc
+veXeRouter.put('/:ticketId/details', updateMultipleTicketDetails);
 
-router.get('/tim-kiem', searchTickets);
+// === CÁC ROUTE NGHIỆP VỤ ĐẶC BIỆT ===
 
-export default router;
+// Ghi nhận thanh toán
+veXeRouter.post('/:ticketId/payments', recordPayment);
+
+// Hủy MỘT chi tiết vé
+veXeRouter.post('/:ticketId/details/batch-cancel', cancelMultipleTicketDetails);
+
+// Di chuyển / hoán đổi vé hàng loạt
+veXeRouter.put('/details/unified-transfer-swap', unifiedTransferOrSwapDetails);
+
+export default veXeRouter;

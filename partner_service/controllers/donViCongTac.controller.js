@@ -14,7 +14,7 @@ export const getAllDonViCongTac = async (req, res) => {
         }
 
         const donVis = await DonViCongTac.find(filter);
-        res.status(200).json(donVis);
+        res.status(200).json({data : donVis});
     } catch (err) {
         res.status(500).json({ message: err.message });
     }

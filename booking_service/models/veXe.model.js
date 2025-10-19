@@ -10,21 +10,8 @@ const VeXeSchema = new mongoose.Schema(
       unique: true,
       trim: true,
     },
-     chuyenXe: {
-            type: String, 
-            required: true,
-            trim: true,
-        },
-
-    tenKhachHang: { type: String, required: true },
-    soDienThoai: { type: String, required: true },
-
+   
     tongTien: {
-      type: Number,
-      required: true,
-      default: 0,
-    },
-    tongTienPhaiTra: {
       type: Number,
       required: true,
       default: 0,
@@ -43,13 +30,8 @@ const VeXeSchema = new mongoose.Schema(
     chiTiet: {
       type: [ChiTietVeSchema],
       default: [],
-    },
-
-    trangThaiVe: {
-      type: String,
-      enum: ["CHO_THANH_TOAN", "DA_THANH_TOAN", "DA_HUY", "DA_CHUYEN"],
-      default: "CHO_THANH_TOAN",
-    },
+    }
+      
   },
   {
     timestamps: true,

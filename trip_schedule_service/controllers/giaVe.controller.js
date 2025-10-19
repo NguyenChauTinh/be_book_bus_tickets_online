@@ -1,6 +1,5 @@
 import GiaVe from "../models/giaVe.model.js";
 
-// ✅ Tạo mới giá vé (có thể kèm chi tiết)
 export const createGiaVe = async (req, res) => {
   try {
     const giaVe = new GiaVe(req.body);
@@ -11,7 +10,6 @@ export const createGiaVe = async (req, res) => {
   }
 };
 
-// ✅ Lấy tất cả giá vé
 export const getAllGiaVe = async (req, res) => {
   try {
     const giaVes = await GiaVe.find();
@@ -22,7 +20,6 @@ export const getAllGiaVe = async (req, res) => {
   }
 };
 
-// Lấy 1 giá vé theo ID
 export const getGiaVeById = async (req, res) => {
   try {
     const giaVe = await GiaVe.findById(req.params.id);
@@ -34,7 +31,6 @@ export const getGiaVeById = async (req, res) => {
   }
 };
 
-// ✅ Cập nhật giá vé
 export const updateGiaVe = async (req, res) => {
   try {
     const giaVe = await GiaVe.findByIdAndUpdate(req.params.id, req.body, {
@@ -46,25 +42,34 @@ export const updateGiaVe = async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 };
-
-// ✅ Xóa giá vé
 export const deleteGiaVe = async (req, res) => {
   try {
-    const giaVe = await GiaVe.findByIdAndDelete(req.params.id);
-    if (!giaVe) return res.status(404).json({ error: "Không tìm thấy giá vé" });
-    res.json({ message: "Xóa thành công" });
+    const giaVe = await GiaVe.findById(req.params.id);
+    if (!giaVe) {
+      return res.status(404).json({ error: "Không tìm thấy giá vé" });
+    }
+
+    // Thay vì xóa, ta chỉ vô hiệu hóa nó
+    giaVe.active = false;
+    await giaVe.save();
+
+    res.json({ message: "Vô hiệu hóa bảng giá thành công", data: giaVe });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-// ✅ Thêm chi tiết giá vé vào 1 giá vé
 export const addChiTietGiaVe = async (req, res) => {
   try {
     const giaVe = await GiaVe.findById(req.params.id);
     if (!giaVe) return res.status(404).json({ error: "Không tìm thấy giá vé" });
+    
+    const { tuyenDuong, loaiXe, soTienThanhToan } = req.body;
+    if (!tuyenDuong || !loaiXe || soTienThanhToan === undefined) {
+        return res.status(400).json({ error: "Thiếu thông tin tuyến đường, loại xe hoặc số tiền." });
+    }
 
-    giaVe.chiTietGiaVe.push(req.body);
+    giaVe.chiTietGiaVe.push({ tuyenDuong, loaiXe, soTienThanhToan });
     await giaVe.save();
 
     res.json(giaVe);
@@ -73,7 +78,29 @@ export const addChiTietGiaVe = async (req, res) => {
   }
 };
 
-// ✅ Xóa chi tiết giá vé trong 1 giá vé
+export const updateChiTietGiaVe = async (req, res) => {
+    try {
+        const { id, chiTietId } = req.params;
+        const { soTienThanhToan } = req.body;
+
+        const giaVe = await GiaVe.findById(id);
+        if (!giaVe) return res.status(404).json({ error: "Không tìm thấy bảng giá." });
+
+        const chiTiet = giaVe.chiTietGiaVe.id(chiTietId);
+        if (!chiTiet) return res.status(404).json({ error: "Không tìm thấy chi tiết giá vé." });
+        
+        if (soTienThanhToan !== undefined) {
+            chiTiet.soTienThanhToan = soTienThanhToan;
+        }
+
+        await giaVe.save();
+        res.json(giaVe);
+
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+}
+
 export const deleteChiTietGiaVe = async (req, res) => {
   try {
     const { id, chiTietId } = req.params;

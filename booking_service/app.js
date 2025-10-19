@@ -2,10 +2,9 @@ import express from 'express';
 import cors from "cors";
 import cookieParser from 'cookie-parser';
 
-
 import { PORT } from './config/env.js';
 import connectToDatabase from './database/mongodb.js';
-import DonViCongTacRouter from './routes/veXe.route.js';
+import veXeRouter from './routes/veXe.route.js';
 
 
 const app = express();
@@ -21,7 +20,7 @@ app.use(
   })
 );
 
-app.use('/api/v1/ve-xe', DonViCongTacRouter);
+app.use('/api/v1/ve-xe', veXeRouter);
 // app.use(errorMiddleware);
 
 app.listen(PORT, async () => {

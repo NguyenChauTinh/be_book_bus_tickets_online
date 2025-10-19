@@ -32,6 +32,11 @@ const taiKhoanSchema = new Schema(
         ref: "VaiTro",
       },
     ],
+    donViCongTac: {
+      type: String,
+      required: [true, "Đơn vị công tác không được để trống!"],
+      trim: true,
+    },
   },
   {
     timestamps: true,
