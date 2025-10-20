@@ -56,7 +56,9 @@ const createChuyenXeHangLoat = async (masterSchedule, linesToProcess = masterSch
             loaiXe: line.loaiXe,
             loaiDichVu: line.loaiDichVu,
             trangThai: "CHUA_XUAT_BEN",
-            ghiChu: line.ghiChu
+            ghiChu: line.ghiChu,
+            laiXe: line.laiXe,
+            phuXe: line.phuXe,
           };
          
           tripsToInsert.push(newTrip);
@@ -133,7 +135,10 @@ export const updateLichChay = async (req, res) => {
                 linesToCreate.push(newLine);
 
             } else {
-                const isChanged = originalLine.loaiDichVu !== newLine.loaiDichVu || originalLine.ghiChu !== newLine.ghiChu;
+                const isChanged = originalLine.loaiDichVu !== newLine.loaiDichVu || 
+                                  originalLine.ghiChu !== newLine.ghiChu ||
+                                  originalLine.laiXe !== newLine.laiXe ||
+                                  originalLine.phuXe !== newLine.phuXe;
                 
                 if (isChanged) {
                     linesToUpdate.push(newLine);
@@ -153,6 +158,8 @@ export const updateLichChay = async (req, res) => {
                 {
                     maLichChay: updatedSchedule.maLichChay,
                     maLine: line.maLine,
+                    laiXe: line.laiXe,
+                    phuXe: line.phuXe,
                     trangThai: { $in: ['CHUA_XUAT_BEN'] },
                     ngayKhoiHanh: { $gte: today }
                 },

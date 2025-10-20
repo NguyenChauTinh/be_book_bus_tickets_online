@@ -35,6 +35,14 @@ const LichChayChiTietSchema = new mongoose.Schema({
     type: TanSuatSchema,
     required: true,
   },
+  laiXe: {
+    type: String,
+    default: null 
+  },
+  phuXe: {
+    type: String,
+    default: null 
+  },
   active: {
     type: Boolean,
     default: true,
