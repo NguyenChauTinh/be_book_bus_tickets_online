@@ -99,7 +99,7 @@ export const updateChiTietGiaVe = async (req, res) => {
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
-}
+};
 
 export const deleteChiTietGiaVe = async (req, res) => {
   try {
