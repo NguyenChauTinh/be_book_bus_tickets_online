@@ -230,6 +230,7 @@ export const layKhuyenMaiTheoId = async (req, res) => {
       });
   }
 };
+//Hàm khuyến mãi áp dụng
 export const timKhuyenMaiApDung = async (req, res) => {
     try {
         const { ngay, gio } = req.query; 

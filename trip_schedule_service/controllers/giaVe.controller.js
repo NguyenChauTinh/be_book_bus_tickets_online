@@ -1,4 +1,5 @@
 import GiaVe from "../models/giaVe.model.js";
+import mongoose from "mongoose";
 
 export const createGiaVe = async (req, res) => {
   try {
@@ -131,29 +132,53 @@ export const toggleActiveStatus = async (req, res) => {
 };
 export const timGiaVeApDung = async (req, res) => {
     try {
-        const { tuyenDuongId, loaiXeId } = req.query;
+        const { tuyenDuongId, loaiXeId, ngayHienTai } = req.query;
 
-        if (!tuyenDuongId || !loaiXeId) {
-            return res.status(400).json({ error: "Cần cung cấp tuyenDuongId và loaiXeId." });
+        if (!tuyenDuongId || !loaiXeId || !ngayHienTai) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Cần cung cấp đủ tuyenDuongId, loaiXeId và ngayHienTai." 
+            });
         }
 
-        const bangGiaHienHanh = await GiaVe.findOne({ active: true });
+        const currentDate = new Date(ngayHienTai);
 
-        if (!bangGiaHienHanh) {
-            return res.status(404).json({ error: "Không tìm thấy bảng giá nào đang hoạt động." });
+        const cacBangGiaPhuHop = await GiaVe.find({
+            active: true,
+            thoiGianBatDau: { $lte: currentDate },
+            thoiGianKetThuc: { $gte: currentDate },
+            chiTietGiaVe: {
+                $elemMatch: {
+                    tuyenDuong: new mongoose.Types.ObjectId(tuyenDuongId),
+                    loaiXe: new mongoose.Types.ObjectId(loaiXeId),
+                },
+            },
+        })
+        .sort({ updatedAt: -1 });
+
+        if (cacBangGiaPhuHop.length === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                message: "Không tìm thấy giá vé phù hợp cho các tiêu chí đã chọn." 
+            });
         }
 
-        const chiTietPhuHop = bangGiaHienHanh.chiTietGiaVe.find(
-            (ct) => ct.tuyenDuong.toString() === tuyenDuongId && ct.loaiXe.toString() === loaiXeId
+        const bangGiaMoiNhat = cacBangGiaPhuHop[0];
+
+        const chiTietPhuHop = bangGiaMoiNhat.chiTietGiaVe.find(
+            (ct) =>
+                ct.tuyenDuong.toString() === tuyenDuongId &&
+                ct.loaiXe.toString() === loaiXeId
         );
 
         if (!chiTietPhuHop) {
-            return res.status(404).json({ error: "Không có giá vé cho tuyến đường và loại xe này." });
+            return res.status(500).json({ success: false, message: "Lỗi logic: Không tìm thấy chi tiết giá vé dù đã khớp bảng giá." });
         }
 
         res.json({ success: true, soTienThanhToan: chiTietPhuHop.soTienThanhToan });
 
     } catch (err) {
-        res.status(500).json({ error: "Lỗi máy chủ khi tìm giá vé.", details: err.message });
+        console.error("Lỗi khi tìm giá vé áp dụng:", err);
+        res.status(500).json({ success: false, message: "Lỗi máy chủ khi tìm giá vé.", details: err.message });
     }
 };
