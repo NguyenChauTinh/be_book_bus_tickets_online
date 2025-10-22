@@ -129,3 +129,31 @@ export const toggleActiveStatus = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+export const timGiaVeApDung = async (req, res) => {
+    try {
+        const { tuyenDuongId, loaiXeId } = req.query;
+
+        if (!tuyenDuongId || !loaiXeId) {
+            return res.status(400).json({ error: "Cần cung cấp tuyenDuongId và loaiXeId." });
+        }
+
+        const bangGiaHienHanh = await GiaVe.findOne({ active: true });
+
+        if (!bangGiaHienHanh) {
+            return res.status(404).json({ error: "Không tìm thấy bảng giá nào đang hoạt động." });
+        }
+
+        const chiTietPhuHop = bangGiaHienHanh.chiTietGiaVe.find(
+            (ct) => ct.tuyenDuong.toString() === tuyenDuongId && ct.loaiXe.toString() === loaiXeId
+        );
+
+        if (!chiTietPhuHop) {
+            return res.status(404).json({ error: "Không có giá vé cho tuyến đường và loại xe này." });
+        }
+
+        res.json({ success: true, soTienThanhToan: chiTietPhuHop.soTienThanhToan });
+
+    } catch (err) {
+        res.status(500).json({ error: "Lỗi máy chủ khi tìm giá vé.", details: err.message });
+    }
+};

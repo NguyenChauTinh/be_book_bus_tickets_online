@@ -9,11 +9,14 @@ import {
   addChiTietGiaVe,
   updateChiTietGiaVe,
   deleteChiTietGiaVe,
+  timGiaVeApDung,
 } from "../controllers/giaVe.controller.js";
 
 const router = Router();
 
 router.post("/tao-gia-ve", createGiaVe);
+
+router.get("/tim-gia-ve-ap-dung", timGiaVeApDung);
 
 router.get("/danh-sach-gia-ve", getAllGiaVe);
 

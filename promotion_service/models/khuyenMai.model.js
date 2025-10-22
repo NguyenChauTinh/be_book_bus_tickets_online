@@ -29,10 +29,10 @@ const KhuyenMaiConditionSchema = new Schema({
         enum: ['KHU_HOI', 'MOT_CHIEU'],
     },
     gioBatDau: {
-        type: String, 
+        type: Number,
     },
     gioKetThuc: {
-        type: String,
+        type: Number,
     }
 });
 
@@ -53,10 +53,6 @@ const KhuyenMaiDetailSchema = new Schema({
     soLuongVeTang: {
         type: Number,
         min: 0,
-    },
-    ghiChu: {
-        type: String,
-        trim: true,
     }
 });
 
@@ -79,7 +75,12 @@ const KhuyenMaiLineSchema = new Schema({
     trangThai:{
         type: Boolean,
         default: true
+    },
+    ghiChu: {
+        type: String,
+        trim: true,
     }
+
 });
 
 const KhuyenMaiMasterSchema = new Schema({

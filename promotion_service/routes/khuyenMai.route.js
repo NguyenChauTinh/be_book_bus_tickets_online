@@ -5,6 +5,8 @@ const khuyenMaiRouter = express.Router();
 
 khuyenMaiRouter.get('/', khuyenMaiController.timKhuyenMai);
 
+khuyenMaiRouter.get('/tim-ap-dung', khuyenMaiController.timKhuyenMaiApDung);
+
 khuyenMaiRouter.get('/:id', khuyenMaiController.layKhuyenMaiTheoId);
 
 khuyenMaiRouter.post('/', khuyenMaiController.taoKhuyenMai);

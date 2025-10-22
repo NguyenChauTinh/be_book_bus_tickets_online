@@ -20,14 +20,41 @@ const isFrequencyMatch = (tanSuat, date) => {
       return false;
   }
 };
+const timeStringToMinutes = (timeStr) => {
+    if (typeof timeStr !== 'string' || !timeStr.match(/^\d{2}:\d{2}$/)) {
+        return timeStr;
+    }
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    return hours * 60 + minutes;
+};
 
-const generateMaChuyenXe = (tuyenDuong, date, gioKhoiHanh) => {
+const minutesToHHMM = (minutes) => {
+    if (typeof minutes !== 'number') return "0000";
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${String(hours).padStart(2, '0')}${String(mins).padStart(2, '0')}`;
+};
+
+const processLichChayBody = (body) => {
+    if (body.lines && Array.isArray(body.lines)) {
+        body.lines.forEach(line => {
+            if (line.gioKhoiHanh) {
+                line.gioKhoiHanh = timeStringToMinutes(line.gioKhoiHanh);
+            }
+        });
+    }
+    return body;
+};
+
+const generateMaChuyenXe = (tuyenDuong, date, gioKhoiHanhPhut) => {
   const day = String(date.getDate()).padStart(2, "0");
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const year = String(date.getFullYear()).slice(-2);
-  const time = gioKhoiHanh.replace(":", "");
+  const time = minutesToHHMM(gioKhoiHanhPhut);
   return `${tuyenDuong}${day}${month}${year}${time}`;
 };
+
+
 
 const createChuyenXeHangLoat = async (masterSchedule, linesToProcess = masterSchedule.lines) => {
   const startDate = new Date(masterSchedule.ngayBatDau);
@@ -36,12 +63,12 @@ const createChuyenXeHangLoat = async (masterSchedule, linesToProcess = masterSch
   const tripsToInsert = [];
 
   while (dateIterator <= endDate) {
-    for (const line of masterSchedule.lines) {
+    for (const line of linesToProcess) { 
       if (line.active && isFrequencyMatch(line.tanSuat, dateIterator)) {
         const tripCode = generateMaChuyenXe(
           masterSchedule.tuyenDuong,
           dateIterator,
-          line.gioKhoiHanh
+          line.gioKhoiHanh 
         );
 
         const existingTrip = await ChuyenXe.findOne({ maChuyenXe: tripCode });
@@ -52,7 +79,7 @@ const createChuyenXeHangLoat = async (masterSchedule, linesToProcess = masterSch
             maLine: line.maLine,
             tuyenDuong: masterSchedule.tuyenDuong,
             ngayKhoiHanh: new Date(dateIterator),
-            gioKhoiHanh: line.gioKhoiHanh,
+            gioKhoiHanh: line.gioKhoiHanh, 
             loaiXe: line.loaiXe,
             loaiDichVu: line.loaiDichVu,
             trangThai: "CHUA_XUAT_BEN",
@@ -70,34 +97,23 @@ const createChuyenXeHangLoat = async (masterSchedule, linesToProcess = masterSch
 
   if (tripsToInsert.length > 0) {
     try {
-      const result = await ChuyenXe.insertMany(tripsToInsert, {
-        ordered: false,
-      });
-      console.log(
-        `Đang tạo ${result.length} chuyến xe cho lịch trình ${masterSchedule.maLichChay} ...`
-      );
-      if (result.length < tripsToInsert.length) {
-        console.warn(
-          `${
-            tripsToInsert.length - result.length
-          } chuyến xe bị lỗi và không thể tạo.`
-        );
+      const result = await ChuyenXe.insertMany(tripsToInsert, { ordered: false });
+      console.log(`Đang tạo ${result.length} chuyến xe cho lịch trình ${masterSchedule.maLichChay} ...`);
+      if (result.insertedCount < tripsToInsert.length) {
+        console.warn(`${tripsToInsert.length - result.insertedCount} chuyến xe bị lỗi và không thể tạo.`);
       }
-     
     } catch (err) {
       console.error("Lỗi khi chèn chuyến xe hàng loạt:", err.message);
     }
   }
 
-  console.log(
-    `Tạo thành công ${tripsToInsert.length} chuyến xe cho lịch trình ${masterSchedule.maLichChay}`
-  );
+  console.log(`Tạo thành công ${tripsToInsert.length} chuyến xe cho lịch trình ${masterSchedule.maLichChay}`);
 };
 
 export const createLichChayMoi = async (req, res) => {
   try {
-    const newSchedule = new LichChayMaster(req.body);
-    console.log("Body =", req.body);
+    const processedBody = processLichChayBody(req.body);
+    const newSchedule = new LichChayMaster(processedBody);
     const savedSchedule = await newSchedule.save();
     await createChuyenXeHangLoat(savedSchedule);
 
@@ -109,7 +125,6 @@ export const createLichChayMoi = async (req, res) => {
     res.status(500).json({ sucess: false, message: err.message });
   }
 };
-
 export const updateLichChay = async (req, res) => {
     try {
         const { id } = req.params;
@@ -118,13 +133,17 @@ export const updateLichChay = async (req, res) => {
         if (!originalSchedule) {
             return res.status(404).json({ message: "Không tìm thấy lịch chạy." });
         }
-        const originalLinesMap = new Map(originalSchedule.lines.map(line => [line.maLine, line]));
+
+        // UPDATED: Xử lý chuyển đổi giờ trong request body trước khi cập nhật
+        const processedBody = processLichChayBody(req.body);
+
         const updatedSchedule = await LichChayMaster.findByIdAndUpdate(
             id,
-            req.body,
+            processedBody,
             { new: true, runValidators: true }
         ).lean();
         
+        const originalLinesMap = new Map(originalSchedule.lines.map(line => [line.maLine, line]));
         const linesToCreate = [];
         const linesToUpdate = [];
 
@@ -133,12 +152,12 @@ export const updateLichChay = async (req, res) => {
 
             if (!originalLine) {
                 linesToCreate.push(newLine);
-
             } else {
+                 // So sánh các trường có thể thay đổi, bỏ qua gioKhoiHanh vì nó phức tạp hơn
                 const isChanged = originalLine.loaiDichVu !== newLine.loaiDichVu || 
                                   originalLine.ghiChu !== newLine.ghiChu ||
-                                  originalLine.laiXe !== newLine.laiXe ||
-                                  originalLine.phuXe !== newLine.phuXe;
+                                  String(originalLine.laiXe) !== String(newLine.laiXe) ||
+                                  String(originalLine.phuXe) !== String(newLine.phuXe);
                 
                 if (isChanged) {
                     linesToUpdate.push(newLine);
@@ -147,8 +166,10 @@ export const updateLichChay = async (req, res) => {
         }
 
         if (linesToCreate.length > 0) {
+            // Truyền updatedSchedule đầy đủ để hàm có context (như tuyenDuong, ngayBatDau...)
             await createChuyenXeHangLoat(updatedSchedule, linesToCreate);
         }
+        
         let totalModifiedTrips = 0;
         const today = new Date();
         today.setHours(0, 0, 0, 0); 
@@ -158,21 +179,20 @@ export const updateLichChay = async (req, res) => {
                 {
                     maLichChay: updatedSchedule.maLichChay,
                     maLine: line.maLine,
-                    laiXe: line.laiXe,
-                    phuXe: line.phuXe,
                     trangThai: { $in: ['CHUA_XUAT_BEN'] },
                     ngayKhoiHanh: { $gte: today }
                 },
                 {
                     $set: {
                         loaiDichVu: line.loaiDichVu,
-                        ghiChu: `[Cập nhật Line] ${line.ghiChu || ''}`
+                        ghiChu: `[Cập nhật Line] ${line.ghiChu || ''}`,
+                        laiXe: line.laiXe, // Cập nhật cả lái xe và phụ xe
+                        phuXe: line.phuXe
                     }
                 }
             );
             totalModifiedTrips += result.modifiedCount;
         }
-
 
         res.status(200).json({
             message: `Cập nhật lịch chạy thành công. Đã sinh chuyến cho ${linesToCreate.length} Line mới và cập nhật ${totalModifiedTrips} chuyến xe hiện tại.`,
@@ -189,7 +209,6 @@ export const updateTrangThaiLichChay = async (req, res) => {
     const ghiChuHuy = 'Tự động hủy do Lịch chạy Master bị vô hiệu hóa.';
 
     try {
-
         const lichChay = await LichChayMaster.findByIdAndUpdate(
             id,
             { 
@@ -236,7 +255,6 @@ export const updateTrangThaiLichChay = async (req, res) => {
         return res.status(500).json({ message: 'Lỗi máy chủ khi vô hiệu hóa lịch chạy Master.', error: error.message });
     }
 };
-
 export const getDanhSachLichChay = async (req, res) => {
   try {
     const schedules = await LichChayMaster.find().populate('tuyenDuong', '_id tenTuyen').populate('lines.loaiXe', '_id tenLoaiXe');;
@@ -253,7 +271,6 @@ export const getDanhSachLichChay = async (req, res) => {
 export const updateTrangThaiLine = async (req, res) => {
     const { activeStatus } = req.body; 
     const { lichChayId, maLine} = req.params; 
-
 
     try {
         const lichChay = await LichChayMaster.findById(lichChayId);
