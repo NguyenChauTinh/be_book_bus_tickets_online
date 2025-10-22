@@ -15,7 +15,8 @@ app.use(cookieParser());
 
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    // Sửa từ chuỗi thành một mảng các chuỗi
+    origin: ["http://localhost:3000", "http://localhost:3001"], 
     credentials: true,
   })
 );

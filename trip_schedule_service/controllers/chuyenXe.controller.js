@@ -1,4 +1,5 @@
 import ChuyenXe from '../models/chuyenXe.model.js';
+import axios from 'axios';
 
 export const createChuyenXeDonLe = async (req, res) => {
     try {
@@ -40,33 +41,52 @@ export const getDanhSachChuyenXe = async (req, res) => {
 export const getDanhSachChuyenXeTheoNgay = async (req, res) => {
     try {
         const { ngayKhoiHanh } = req.query;
-
         if (!ngayKhoiHanh) {
-            return res.status(400).json({ success: false, message: 'Vui lòng cung cấp ngày khởi hành (ngayKhoiHanh).' });
+            return res.status(400).json({ success: false, message: 'Vui lòng cung cấp ngày khởi hành.' });
         }
 
-        // Xử lý ngày khởi hành để tìm kiếm trong khoảng một ngày (từ 00:00:00 đến 23:59:59)
         const startOfDay = new Date(ngayKhoiHanh);
-        startOfDay.setHours(0, 0, 0, 0);
-
+        startOfDay.setUTCHours(0, 0, 0, 0);
         const endOfDay = new Date(ngayKhoiHanh);
-        endOfDay.setHours(23, 59, 59, 999);
+        endOfDay.setUTCHours(23, 59, 59, 999);
 
-        const filter = {
-            ngayKhoiHanh: {
-                $gte: startOfDay,
-                $lte: endOfDay
-            }
-        };
-
-        const trips = await ChuyenXe.find(filter).sort({ ngayKhoiHanh: 1 });
+        // Bước 1: Lấy danh sách chuyến xe gốc
+        const trips = await ChuyenXe.find({
+            ngayKhoiHanh: { $gte: startOfDay, $lte: endOfDay }
+        }).sort({ gioKhoiHanh: 1 }).lean();
 
         if (trips.length === 0) {
-            return res.status(200).json({ success: false, message: 'Không tìm thấy chuyến xe nào trong ngày này.', data: [] });
+            return res.status(200).json({ success: true, data: [] });
         }
 
-        res.status(200).json({ success: true, message: 'Lấy danh sách chuyến xe theo ngày thành công.', data: trips });
+        // Bước 2: Lấy tất cả ID của các chuyến xe
+        const tripIds = trips.map(trip => trip._id.toString());
+        console.log("Trip IDs:", tripIds);
+        
+        let ticketCountsMap = {};
+        try {
+            // Bước 3: Gọi API đến service vé xe để lấy số lượng vé
+            const response = await axios.post('http://localhost:3005/api/v1/ve-xe/thong-ke/so-luong-theo-chuyen', {
+                chuyenXeIds: tripIds
+            });
+            if (response.data.success) {
+                ticketCountsMap = response.data.data;
+            }
+        } catch (apiError) {
+            console.error("Lỗi khi gọi đến Ticket Service:", apiError.message);
+            // Không chặn chương trình nếu service vé lỗi, chỉ log lại
+        }
+
+        const tripsWithBookedCount = trips.map(trip => ({
+            ...trip,
+            soVeDaDat: ticketCountsMap[trip._id.toString()] || 0 
+        }));
+        
+
+        res.status(200).json({ success: true, message: 'Lấy danh sách chuyến xe thành công.', data: tripsWithBookedCount });
+
     } catch (err) {
+        console.error("Lỗi khi lấy danh sách chuyến xe:", err);
         res.status(500).json({ success: false, message: err.message });
     }
 };

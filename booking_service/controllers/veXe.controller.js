@@ -560,3 +560,46 @@ export const unifiedTransferOrSwapDetails = async (req, res) => {
     session.endSession();
   }
 };
+export const getTicketCountsForMultipleTrips = async (req, res) => {
+    try {
+        const { chuyenXeIds } = req.body;
+
+        if (!Array.isArray(chuyenXeIds) || chuyenXeIds.length === 0) {
+            return res.status(400).json({ success: false, message: 'chuyenXeIds phải là một mảng và không được rỗng.' });
+        }
+        
+        // Sử dụng aggregation để đếm hiệu quả
+        const counts = await VeXe.aggregate([
+            // Giai đoạn 1: "Mở" mảng chiTiet ra để xử lý từng vé con
+            { $unwind: '$chiTiet' },
+            
+            // Giai đoạn 2: Lọc ra các vé con thuộc danh sách chuyến xe và không bị hủy
+            {
+                $match: {
+                    'chiTiet.chuyenXe': { $in: chuyenXeIds },
+                    'chiTiet.trangThaiChiTiet': { $ne: 'DA_HUY' }
+                }
+            },
+
+            // Giai đoạn 3: Gom nhóm theo chuyenXe và đếm số lượng
+            {
+                $group: {
+                    _id: '$chiTiet.chuyenXe', // Gom nhóm theo ID chuyến xe
+                    count: { $sum: 1 }      // Đếm số lượng document trong mỗi nhóm
+                }
+            }
+        ]);
+
+        // Chuyển kết quả từ mảng [{ _id, count }] thành object { chuyenXeId: count }
+        const countsMap = counts.reduce((acc, item) => {
+            acc[item._id] = item.count;
+            return acc;
+        }, {});
+
+        res.status(200).json({ success: true, data: countsMap });
+
+    } catch (error) {
+        console.error("Lỗi khi lấy số lượng vé cho nhiều chuyến:", error);
+        res.status(500).json({ success: false, message: 'Lỗi máy chủ.' });
+    }
+};

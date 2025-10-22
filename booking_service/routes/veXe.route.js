@@ -9,6 +9,7 @@ import {
     recordPayment,
     cancelMultipleTicketDetails,
     unifiedTransferOrSwapDetails,
+    getTicketCountsForMultipleTrips,
 } from '../controllers/veXe.controller.js';
 
 const veXeRouter = express.Router();
@@ -37,5 +38,7 @@ veXeRouter.post('/:ticketId/details/batch-cancel', cancelMultipleTicketDetails);
 
 // Di chuyển / hoán đổi vé hàng loạt
 veXeRouter.put('/details/unified-transfer-swap', unifiedTransferOrSwapDetails);
+
+veXeRouter.post('/thong-ke/so-luong-theo-chuyen', getTicketCountsForMultipleTrips);
 
 export default veXeRouter;
