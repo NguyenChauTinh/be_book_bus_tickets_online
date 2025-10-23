@@ -154,22 +154,22 @@ export const chinhSuaTaiKhoan = async (req, res) => {
 
 export const timTaiKhoan = async (req, res) => {
     try {
-        const { query } = req;
-        const ketQua = await TaiKhoan.find(query)
+        const { id } = req.params;
+
+        const ketQua = await TaiKhoan.findById(id)
             .populate("nhanVien vaiTro");
 
-        if (ketQua.length === 0) {
+        if (!ketQua) {
             return res.status(404).json({
                 success: false,
-                message: "Không tìm thấy tài khoản phù hợp.",
+                message: "Không tìm thấy tài khoản với ID này.",
             });
         }
 
         res.status(200).json({
             success: true,
             message: "Tìm kiếm thành công.",
-            count: ketQua.length,
-            data: ketQua,
+            data: ketQua, 
         });
     } catch (error) {
         res.status(500).json({
@@ -182,7 +182,7 @@ export const timTaiKhoan = async (req, res) => {
 
 export const layDanhSachTaiKhoan = async (req, res) => {
     try {
-        const taiKhoans = await TaiKhoan.find();
+        const taiKhoans = await TaiKhoan.find().populate("nhanVien");;
 
         res.status(200).json({
             success: true,

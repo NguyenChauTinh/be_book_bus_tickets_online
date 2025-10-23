@@ -18,7 +18,16 @@ const generateMaVe = () => {
 
 const recalculateTongTien = (ticket) => {
   ticket.tongTien = ticket.chiTiet
-    .filter((ct) => ct.trangThaiChiTiet !== "DA_HUY") // Chỉ tính các vé không bị hủy
+    .filter((ct) => ct.trangThaiChiTiet !== "DA_HUY")
+    .reduce(
+      (sum, item) =>
+        sum + (item.giaVeCoBan || 0) + (item.phuThu || 0) - (item.giamGia || 0),
+      0
+    );
+};
+const recalculateTongTienDaThanhToan = (ticket) => {
+  ticket.tongTienDaThanhToan = ticket.chiTiet
+    .filter((ct) => ct.hinhThucThanhToan && ct.trangThaiChiTiet !== "DA_HUY")
     .reduce(
       (sum, item) =>
         sum + (item.giaVeCoBan || 0) + (item.phuThu || 0) - (item.giamGia || 0),
@@ -59,54 +68,56 @@ export const getTicketById = async (req, res) => {
  * @desc Lấy danh sách vé master có chứa ít nhất một chi tiết vé thuộc về chuyến xe.
  */
 export const getTicketsByChuyenXeId = async (req, res) => {
-    try {
-        const { chuyenXeId } = req.params;
+  try {
+    const { chuyenXeId } = req.params;
 
-        if (!chuyenXeId) {
-            return res.status(400).json({ success: false, message: 'ID chuyến xe không được để trống.' });
-        }
-
-        // Sử dụng Aggregation Pipeline để lọc sâu hơn
-        const tickets = await VeXe.aggregate([
-            // BƯỚC 1: Tìm tất cả các vé master có chứa chi tiết vé thuộc chuyến xe.
-            // Giai đoạn này giúp thu hẹp phạm vi tìm kiếm một cách hiệu quả.
-            {
-                $match: {
-                    'chiTiet.chuyenXe': chuyenXeId,
-                },
-            },
-            // BƯỚC 2: "Mở" mảng chiTiet ra, mỗi chi tiết thành một document riêng.
-            {
-                $unwind: '$chiTiet',
-            },
-            // BƯỚC 3: Lọc lại một lần nữa, chỉ giữ lại những chi tiết có chuyenXeId khớp
-            // và không bị hủy. Đây là bước quan trọng nhất.
-            {
-                $match: {
-                    'chiTiet.chuyenXe': chuyenXeId,
-                    'chiTiet.trangThaiChiTiet': { $ne: 'DA_HUY' },
-                },
-            },
-            // BƯỚC 4: Gom các chi tiết đã lọc lại thành vé master ban đầu.
-            {
-                $group: {
-                    _id: '$_id', // Gom theo ID của vé master
-                    maVe: { $first: '$maVe' },
-                    tongTien: { $first: '$tongTien' },
-                    tongTienDaThanhToan: { $first: '$tongTienDaThanhToan' },
-                    maGiamGia: { $first: '$maGiamGia' },
-                    createdAt: { $first: '$createdAt' },
-                    updatedAt: { $first: '$updatedAt' },
-                    chiTiet: { $push: '$chiTiet' }, // Đẩy các chi tiết đã lọc vào lại mảng
-                },
-            },
-        ]);
-
-        res.status(200).json({ success: true, data: tickets });
-    } catch (error) {
-        console.error('Lỗi khi lấy danh sách vé theo chuyến xe:', error);
-        res.status(500).json({ success: false, message: 'Lỗi máy chủ.' });
+    if (!chuyenXeId) {
+      return res
+        .status(400)
+        .json({ success: false, message: "ID chuyến xe không được để trống." });
     }
+
+    // Sử dụng Aggregation Pipeline để lọc sâu hơn
+    const tickets = await VeXe.aggregate([
+      // BƯỚC 1: Tìm tất cả các vé master có chứa chi tiết vé thuộc chuyến xe.
+      // Giai đoạn này giúp thu hẹp phạm vi tìm kiếm một cách hiệu quả.
+      {
+        $match: {
+          "chiTiet.chuyenXe": chuyenXeId,
+        },
+      },
+      // BƯỚC 2: "Mở" mảng chiTiet ra, mỗi chi tiết thành một document riêng.
+      {
+        $unwind: "$chiTiet",
+      },
+      // BƯỚC 3: Lọc lại một lần nữa, chỉ giữ lại những chi tiết có chuyenXeId khớp
+      // và không bị hủy. Đây là bước quan trọng nhất.
+      {
+        $match: {
+          "chiTiet.chuyenXe": chuyenXeId,
+          "chiTiet.trangThaiChiTiet": { $ne: "DA_HUY" },
+        },
+      },
+      // BƯỚC 4: Gom các chi tiết đã lọc lại thành vé master ban đầu.
+      {
+        $group: {
+          _id: "$_id", // Gom theo ID của vé master
+          maVe: { $first: "$maVe" },
+          tongTien: { $first: "$tongTien" },
+          tongTienDaThanhToan: { $first: "$tongTienDaThanhToan" },
+          maGiamGia: { $first: "$maGiamGia" },
+          createdAt: { $first: "$createdAt" },
+          updatedAt: { $first: "$updatedAt" },
+          chiTiet: { $push: "$chiTiet" }, // Đẩy các chi tiết đã lọc vào lại mảng
+        },
+      },
+    ]);
+
+    res.status(200).json({ success: true, data: tickets });
+  } catch (error) {
+    console.error("Lỗi khi lấy danh sách vé theo chuyến xe:", error);
+    res.status(500).json({ success: false, message: "Lỗi máy chủ." });
+  }
 };
 
 /**
@@ -117,7 +128,7 @@ export const getTicketsByChuyenXeId = async (req, res) => {
  */
 export const createTicket = async (req, res) => {
   try {
-    const { chiTiet } = req.body;
+    const { chiTiet, nhanVienTao } = req.body;
 
     if (!chiTiet || chiTiet.length === 0) {
       return res.status(400).json({
@@ -126,27 +137,26 @@ export const createTicket = async (req, res) => {
       });
     }
 
-    for (const detail of chiTiet) {
-      if (!detail.tenKhachHang || !detail.soDienThoai) {
-        return res.status(400).json({
-          success: false,
-          message: "Mỗi ghế phải có tên và số điện thoại khách hàng.",
-        });
-      }
-    }
+    const chiTietWithCreator = chiTiet.map((detail) => ({
+      ...detail,
+      nhanVienTao: nhanVienTao || null,
+    }));
 
     let initialPayment = 0;
-    for (const detail of chiTiet) {
+    for (const detail of chiTietWithCreator) {
       if (detail.hinhThucThanhToan) {
-        const amountForDetail = (detail.giaVeCoBan || 0) + (detail.phuThu || 0) - (detail.giamGia || 0);
+        const amountForDetail =
+          (detail.giaVeCoBan || 0) +
+          (detail.phuThu || 0) -
+          (detail.giamGia || 0);
         initialPayment += amountForDetail > 0 ? amountForDetail : 0;
       }
     }
 
     const newTicket = new VeXe({
       maVe: generateMaVe(),
-      chiTiet: chiTiet,
-      tongTienDaThanhToan: initialPayment, 
+      chiTiet: chiTietWithCreator,
+      tongTienDaThanhToan: initialPayment,
     });
 
     recalculateTongTien(newTicket);
@@ -160,7 +170,9 @@ export const createTicket = async (req, res) => {
     });
   } catch (error) {
     console.error("Lỗi khi tạo vé xe:", error);
-    res.status(500).json({ success: false, message: "Lỗi máy chủ: " + error.message });
+    res
+      .status(500)
+      .json({ success: false, message: "Lỗi máy chủ: " + error.message });
   }
 };
 
@@ -242,6 +254,8 @@ export const updateMultipleTicketDetails = async (req, res) => {
       "giaVeCoBan",
       "phuThu",
       "giamGia",
+      "nhanVienThuTien",
+      "donViThanhToan",
     ];
 
     for (const item of updatesList) {
@@ -266,7 +280,7 @@ export const updateMultipleTicketDetails = async (req, res) => {
     }
 
     recalculateTongTien(ticket);
-
+    recalculateTongTienDaThanhToan(ticket);
     await ticket.save();
 
     res.status(200).json({
@@ -333,57 +347,57 @@ export const cancelMultipleTicketDetails = async (req, res) => {
   }
 };
 export const recordPayment = async (req, res) => {
-    try {
-        const { ticketId } = req.params;
-        const { payments } = req.body; // `payments` is an array like [{ chiTietId, amountPaid }]
+  try {
+    const { ticketId } = req.params;
+    const { payments } = req.body; // `payments` is an array like [{ chiTietId, amountPaid }]
 
-        if (
-            !mongoose.Types.ObjectId.isValid(ticketId) ||
-            !Array.isArray(payments) ||
-            payments.length === 0
-        ) {
-            return res
-                .status(400)
-                .json({ success: false, message: 'Dữ liệu thanh toán không hợp lệ.' });
-        }
-
-        const ticket = await VeXe.findById(ticketId);
-        if (!ticket) {
-            return res
-                .status(404)
-                .json({ success: false, message: 'Không tìm thấy vé xe.' });
-        }
-
-        let totalAmountPaidInThisTransaction = 0;
-
-        for (const payment of payments) {
-            const { chiTietId, amountPaid } = payment;
-
-            const chiTiet = ticket.chiTiet.id(chiTietId);
-
-            if (chiTiet) {
-                chiTiet.trangThaiChiTiet = 'DA_THANH_TOAN';
-
-                if (amountPaid && amountPaid > 0) {
-                    totalAmountPaidInThisTransaction += amountPaid;
-                }
-            }
-        }
-
-        ticket.tongTienDaThanhToan =
-            (ticket.tongTienDaThanhToan || 0) + totalAmountPaidInThisTransaction;
-
-        await ticket.save();
-
-        res.status(200).json({
-            success: true,
-            message: 'Ghi nhận thanh toán và cập nhật trạng thái thành công.',
-            data: ticket,
-        });
-    } catch (error) {
-        console.error('Lỗi khi ghi nhận thanh toán:', error);
-        res.status(500).json({ success: false, message: 'Lỗi máy chủ.' });
+    if (
+      !mongoose.Types.ObjectId.isValid(ticketId) ||
+      !Array.isArray(payments) ||
+      payments.length === 0
+    ) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Dữ liệu thanh toán không hợp lệ." });
     }
+
+    const ticket = await VeXe.findById(ticketId);
+    if (!ticket) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy vé xe." });
+    }
+
+    let totalAmountPaidInThisTransaction = 0;
+
+    for (const payment of payments) {
+      const { chiTietId, amountPaid } = payment;
+
+      const chiTiet = ticket.chiTiet.id(chiTietId);
+
+      if (chiTiet) {
+        chiTiet.trangThaiChiTiet = "DA_THANH_TOAN";
+
+        if (amountPaid && amountPaid > 0) {
+          totalAmountPaidInThisTransaction += amountPaid;
+        }
+      }
+    }
+
+    ticket.tongTienDaThanhToan =
+      (ticket.tongTienDaThanhToan || 0) + totalAmountPaidInThisTransaction;
+
+    await ticket.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Ghi nhận thanh toán và cập nhật trạng thái thành công.",
+      data: ticket,
+    });
+  } catch (error) {
+    console.error("Lỗi khi ghi nhận thanh toán:", error);
+    res.status(500).json({ success: false, message: "Lỗi máy chủ." });
+  }
 };
 
 /**
@@ -410,12 +424,10 @@ export const addDetailToTicket = async (req, res) => {
       !Array.isArray(chiTiet) ||
       chiTiet.length === 0
     ) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Dữ liệu chi tiết vé mới hoặc ID chuyến xe không hợp lệ.",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Dữ liệu chi tiết vé mới hoặc ID chuyến xe không hợp lệ.",
+      });
     }
 
     const ticket = await VeXe.findById(ticketId);
@@ -436,13 +448,11 @@ export const addDetailToTicket = async (req, res) => {
     recalculateTongTien(ticket);
 
     await ticket.save();
-    res
-      .status(200)
-      .json({
-        success: true,
-        message: `Thêm ${chiTiet.length} ghế mới vào vé thành công.`,
-        data: ticket,
-      });
+    res.status(200).json({
+      success: true,
+      message: `Thêm ${chiTiet.length} ghế mới vào vé thành công.`,
+      data: ticket,
+    });
   } catch (error) {
     console.error("Lỗi khi thêm chi tiết vé:", error);
     res.status(500).json({ success: false, message: "Lỗi máy chủ." });
@@ -544,12 +554,10 @@ export const unifiedTransferOrSwapDetails = async (req, res) => {
     );
 
     await session.commitTransaction();
-    res
-      .status(200)
-      .json({
-        success: true,
-        message: "Thao tác chuyển/hoán đổi vé thành công.",
-      });
+    res.status(200).json({
+      success: true,
+      message: "Thao tác chuyển/hoán đổi vé thành công.",
+    });
   } catch (error) {
     await session.abortTransaction();
     console.error("Lỗi khi chuyển/hoán đổi vé:", error);
@@ -561,45 +569,49 @@ export const unifiedTransferOrSwapDetails = async (req, res) => {
   }
 };
 export const getTicketCountsForMultipleTrips = async (req, res) => {
-    try {
-        const { chuyenXeIds } = req.body;
+  try {
+    const { chuyenXeIds } = req.body;
 
-        if (!Array.isArray(chuyenXeIds) || chuyenXeIds.length === 0) {
-            return res.status(400).json({ success: false, message: 'chuyenXeIds phải là một mảng và không được rỗng.' });
-        }
-        
-        // Sử dụng aggregation để đếm hiệu quả
-        const counts = await VeXe.aggregate([
-            // Giai đoạn 1: "Mở" mảng chiTiet ra để xử lý từng vé con
-            { $unwind: '$chiTiet' },
-            
-            // Giai đoạn 2: Lọc ra các vé con thuộc danh sách chuyến xe và không bị hủy
-            {
-                $match: {
-                    'chiTiet.chuyenXe': { $in: chuyenXeIds },
-                    'chiTiet.trangThaiChiTiet': { $ne: 'DA_HUY' }
-                }
-            },
-
-            // Giai đoạn 3: Gom nhóm theo chuyenXe và đếm số lượng
-            {
-                $group: {
-                    _id: '$chiTiet.chuyenXe', // Gom nhóm theo ID chuyến xe
-                    count: { $sum: 1 }      // Đếm số lượng document trong mỗi nhóm
-                }
-            }
-        ]);
-
-        // Chuyển kết quả từ mảng [{ _id, count }] thành object { chuyenXeId: count }
-        const countsMap = counts.reduce((acc, item) => {
-            acc[item._id] = item.count;
-            return acc;
-        }, {});
-
-        res.status(200).json({ success: true, data: countsMap });
-
-    } catch (error) {
-        console.error("Lỗi khi lấy số lượng vé cho nhiều chuyến:", error);
-        res.status(500).json({ success: false, message: 'Lỗi máy chủ.' });
+    if (!Array.isArray(chuyenXeIds) || chuyenXeIds.length === 0) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "chuyenXeIds phải là một mảng và không được rỗng.",
+        });
     }
+
+    // Sử dụng aggregation để đếm hiệu quả
+    const counts = await VeXe.aggregate([
+      // Giai đoạn 1: "Mở" mảng chiTiet ra để xử lý từng vé con
+      { $unwind: "$chiTiet" },
+
+      // Giai đoạn 2: Lọc ra các vé con thuộc danh sách chuyến xe và không bị hủy
+      {
+        $match: {
+          "chiTiet.chuyenXe": { $in: chuyenXeIds },
+          "chiTiet.trangThaiChiTiet": { $ne: "DA_HUY" },
+        },
+      },
+
+      // Giai đoạn 3: Gom nhóm theo chuyenXe và đếm số lượng
+      {
+        $group: {
+          _id: "$chiTiet.chuyenXe", // Gom nhóm theo ID chuyến xe
+          count: { $sum: 1 }, // Đếm số lượng document trong mỗi nhóm
+        },
+      },
+    ]);
+
+    // Chuyển kết quả từ mảng [{ _id, count }] thành object { chuyenXeId: count }
+    const countsMap = counts.reduce((acc, item) => {
+      acc[item._id] = item.count;
+      return acc;
+    }, {});
+
+    res.status(200).json({ success: true, data: countsMap });
+  } catch (error) {
+    console.error("Lỗi khi lấy số lượng vé cho nhiều chuyến:", error);
+    res.status(500).json({ success: false, message: "Lỗi máy chủ." });
+  }
 };

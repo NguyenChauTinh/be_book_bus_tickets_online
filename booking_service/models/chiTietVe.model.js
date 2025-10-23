@@ -1,13 +1,11 @@
-// models/chiTietVe.model.js (Hoặc đặt chung trong VeXe.model.js)
-
 import mongoose from 'mongoose';
 
 const ChiTietVeSchema = new mongoose.Schema({
     chuyenXe: {
-            type: String, 
-            required: true,
-            trim: true,
-        },
+        type: String, 
+        required: true,
+        trim: true,
+    },
     tenKhachHang: { 
         type: String, 
         required: true 
@@ -41,7 +39,6 @@ const ChiTietVeSchema = new mongoose.Schema({
         trim: true,
         default: null,
     },
-
     giaVeCoBan: { 
         type: Number,
         required: true,
@@ -55,12 +52,23 @@ const ChiTietVeSchema = new mongoose.Schema({
         type: Number,
         default: 0,
     },
-   hinhThucThanhToan: {
+    hinhThucThanhToan: {
         type: String,
-        trim: true,
+        enum: ['TAI_VAN_PHONG', 'DAI_LY', 'CHUYEN_KHOAN', 'KHONG_THU_TIEN', null],
         default: null,
     },
-
+    nhanVienTao: {
+        type: String, 
+        default: null,
+    },
+    nhanVienThuTien: {
+        type: String, 
+        default: null,
+    },
+    donViThanhToan: {
+        type: String, 
+        default: null,
+    },
     ghiChu: {
         type: String,
         trim: true,
@@ -72,4 +80,5 @@ const ChiTietVeSchema = new mongoose.Schema({
         default: 'DAT_CHO',
     },
 }, { _id: true });
+
 export default ChiTietVeSchema;

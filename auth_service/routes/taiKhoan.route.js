@@ -20,7 +20,7 @@ taiKhoanRouter.post('/dang-nhap', dangNhap);
 taiKhoanRouter.put('/:id', chinhSuaTaiKhoan);
 
 
-taiKhoanRouter.get('/', layDanhSachTaiKhoan);
+taiKhoanRouter.get('/danh-sach', layDanhSachTaiKhoan);
 
 taiKhoanRouter.get('/:id', timTaiKhoan);
 

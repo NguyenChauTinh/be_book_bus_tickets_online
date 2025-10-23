@@ -132,13 +132,14 @@ export const updateTrangThaiChuyenXe = async (req, res) => {
 export const updateChuyenXe = async (req, res) => {
     try {
         const { id } = req.params;
-        const { laiXe, phuXe, xe, trangThai } = req.body;
+        const { laiXe, phuXe, xe, trangThai, ghiChu } = req.body;
 
         const updateData = {};
         if (laiXe !== undefined) updateData.laiXe = laiXe;
         if (phuXe !== undefined) updateData.phuXe = phuXe;
         if (xe !== undefined) updateData.xe = xe;
         if (trangThai !== undefined) updateData.trangThai = trangThai;
+        if (ghiChu !== undefined) updateData.ghiChu = ghiChu;
 
         if (Object.keys(updateData).length === 0) {
             return res.status(400).json({ message: 'Không có dữ liệu hợp lệ để cập nhật.' });
