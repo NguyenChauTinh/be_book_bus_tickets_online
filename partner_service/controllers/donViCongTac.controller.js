@@ -7,6 +7,8 @@ export const getAllDonViCongTac = async (req, res) => {
 
         if (loaiDonVi) {
             filter.loaiDonVi = loaiDonVi;
+        } else {
+            filter.loaiDonVi = { $in: ["DAILY", "NGANHANG"] };
         }
 
         if (trangThai !== undefined) {
@@ -14,11 +16,12 @@ export const getAllDonViCongTac = async (req, res) => {
         }
 
         const donVis = await DonViCongTac.find(filter);
-        res.status(200).json({data : donVis});
+        res.status(200).json({ data: donVis });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
 };
+
 
 export const getDonViCongTacById = async (req, res) => {
     try {

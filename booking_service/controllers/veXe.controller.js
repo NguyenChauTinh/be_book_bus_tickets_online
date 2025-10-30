@@ -1,6 +1,8 @@
 import { console } from "inspector";
 import VeXe from "../models/veXe.model.js";
+import HoaDon from "../models/hoaDon.model.js";
 import mongoose from "mongoose";
+import moment from "moment";
 
 /**
  * @desc Tạo mã vé ngẫu nhiên, không trùng lặp, dài 8-10 ký tự.
@@ -127,6 +129,8 @@ export const getTicketsByChuyenXeId = async (req, res) => {
  * @body { chuyenXe: "ID_chuyen_xe", chiTiet: [{ tenKhachHang: "...", soDienThoai: "...", maChoNgoi: "A1", ... }] }
  */
 export const createTicket = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
     const { chiTiet, nhanVienTao } = req.body;
 
@@ -142,26 +146,52 @@ export const createTicket = async (req, res) => {
       nhanVienTao: nhanVienTao || null,
     }));
 
-    let initialPayment = 0;
-    for (const detail of chiTietWithCreator) {
-      if (detail.hinhThucThanhToan) {
-        const amountForDetail =
-          (detail.giaVeCoBan || 0) +
-          (detail.phuThu || 0) -
-          (detail.giamGia || 0);
-        initialPayment += amountForDetail > 0 ? amountForDetail : 0;
+    const newTicket = new VeXe({
+      maVe: generateMaVe(),
+      chiTiet: chiTiet.map((detail) => ({
+        ...detail,
+        nhanVienTao: nhanVienTao || null,
+      })),
+    });
+    const paidDetails = newTicket.chiTiet.filter((ct) => ct.hinhThucThanhToan);
+
+    if (paidDetails.length > 0) {
+      const initialPaymentAmount = paidDetails.reduce(
+        (sum, item) =>
+          sum +
+          (item.giaVeCoBan || 0) +
+          (item.phuThu || 0) -
+          (item.giamGia || 0),
+        0
+      );
+
+      if (initialPaymentAmount > 0) {
+        const newHoaDon = new HoaDon({
+          maHoaDon: moment().format("DDHHmmss"),
+          veXe: newTicket._id,
+          chiTietVeThanhToan: paidDetails.map((ct) => ct._id),
+          soTien: initialPaymentAmount,
+          phuongThuc:
+            paidDetails[0].hinhThucThanhToan === "CHUYEN_KHOAN"
+              ? "CHUYEN_KHOAN_MANUAL"
+              : "TIEN_MAT",
+          trangThai: "THANH_CONG",
+          noiDungThanhToan: `Thanh toan khi dat ve ${newTicket.maVe}`,
+        });
+        await newHoaDon.save({ session });
+
+        paidDetails.forEach((ct) => {
+          // Cập nhật lại link hóa đơn cho các chi tiết vé
+          ct.hoaDon = newHoaDon._id;
+        });
       }
     }
 
-    const newTicket = new VeXe({
-      maVe: generateMaVe(),
-      chiTiet: chiTietWithCreator,
-      tongTienDaThanhToan: initialPayment,
-    });
-
     recalculateTongTien(newTicket);
+    recalculateTongTienDaThanhToan(newTicket);
 
-    const savedTicket = await newTicket.save();
+    const savedTicket = await newTicket.save({ session });
+    await session.commitTransaction();
 
     res.status(201).json({
       success: true,
@@ -173,6 +203,8 @@ export const createTicket = async (req, res) => {
     res
       .status(500)
       .json({ success: false, message: "Lỗi máy chủ: " + error.message });
+  } finally {
+    session.endSession();
   }
 };
 
@@ -219,6 +251,89 @@ export const searchTickets = async (req, res) => {
  * @route PUT /api/ve-xe/:ticketId/details
  * @body { updatesList: [{ chiTietId: "...", updates: { tenKhachHang: "...", phuThu: 10000, ... } }] }
  */
+// export const updateMultipleTicketDetails = async (req, res) => {
+//   try {
+//     const { ticketId } = req.params;
+//     const { updatesList } = req.body;
+
+//     if (
+//       !mongoose.Types.ObjectId.isValid(ticketId) ||
+//       !Array.isArray(updatesList) ||
+//       updatesList.length === 0
+//     ) {
+//       return res
+//         .status(400)
+//         .json({ success: false, message: "Dữ liệu cập nhật không hợp lệ." });
+//     }
+
+//     const ticket = await VeXe.findById(ticketId);
+//     if (!ticket) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "Không tìm thấy vé xe." });
+//     }
+
+//     const allowedUpdates = [
+//       "tenKhachHang",
+//       "soDienThoai",
+//       "diemDon",
+//       "diemTra",
+//       "diemDonTC",
+//       "diemTraTC",
+//       "ghiChu",
+//       "hinhThucThanhToan",
+//       "trangThaiChiTiet",
+//       "giaVeCoBan",
+//       "phuThu",
+//       "giamGia",
+//       "nhanVienThuTien",
+//       "donViThanhToan",
+//     ];
+
+//     for (const item of updatesList) {
+//       const { chiTietId, updates } = item;
+//       if (!chiTietId || !updates) continue;
+
+//       const chiTiet = ticket.chiTiet.id(chiTietId);
+//       if (chiTiet) {
+//         Object.keys(updates).forEach((key) => {
+//           if (allowedUpdates.includes(key)) {
+//             chiTiet[key] = updates[key];
+//           }
+//         });
+
+//         if (
+//           updates.hinhThucThanhToan &&
+//           !["DA_HUY", "DA_CHUYEN"].includes(chiTiet.trangThaiChiTiet)
+//         ) {
+//           chiTiet.trangThaiChiTiet = "DA_THANH_TOAN";
+//         }
+//       }
+//     }
+
+//     recalculateTongTien(ticket);
+//     recalculateTongTienDaThanhToan(ticket);
+//     await ticket.save();
+
+//     res.status(200).json({
+//       success: true,
+//       message: "Cập nhật các chi tiết vé thành công.",
+//       data: ticket,
+//     });
+//   } catch (error) {
+//     console.error("Lỗi khi cập nhật nhiều chi tiết vé:", error);
+//     res.status(500).json({ success: false, message: "Lỗi máy chủ." });
+//   }
+// };
+// ... các import và hàm khác ...
+
+/**
+ * @desc [NÂNG CẤP MỚI NHẤT] Cập nhật thông tin cho nhiều chi tiết vé.
+ * Cho phép chỉnh sửa thông tin hành chính VÀ GIÁ VÉ.
+ * Vẫn KHÔNG cho phép ghi nhận thanh toán qua hàm này.
+ * @route PUT /api/ve-xe/:ticketId/details
+ * @body { updatesList: [{ chiTietId: "...", updates: { tenKhachHang: "...", giaVeCoBan: 150000, ... } }] }
+ */
 export const updateMultipleTicketDetails = async (req, res) => {
   try {
     const { ticketId } = req.params;
@@ -249,14 +364,12 @@ export const updateMultipleTicketDetails = async (req, res) => {
       "diemDonTC",
       "diemTraTC",
       "ghiChu",
-      "hinhThucThanhToan",
-      "trangThaiChiTiet",
       "giaVeCoBan",
       "phuThu",
       "giamGia",
-      "nhanVienThuTien",
-      "donViThanhToan",
     ];
+
+    let hasPriceChanged = false;
 
     for (const item of updatesList) {
       const { chiTietId, updates } = item;
@@ -267,25 +380,24 @@ export const updateMultipleTicketDetails = async (req, res) => {
         Object.keys(updates).forEach((key) => {
           if (allowedUpdates.includes(key)) {
             chiTiet[key] = updates[key];
+            if (["giaVeCoBan", "phuThu", "giamGia"].includes(key)) {
+              hasPriceChanged = true;
+            }
           }
         });
-
-        if (
-          updates.hinhThucThanhToan &&
-          !["DA_HUY", "DA_CHUYEN"].includes(chiTiet.trangThaiChiTiet)
-        ) {
-          chiTiet.trangThaiChiTiet = "DA_THANH_TOAN";
-        }
       }
     }
 
-    recalculateTongTien(ticket);
-    recalculateTongTienDaThanhToan(ticket);
+    // Nếu có bất kỳ thay đổi nào về giá, hãy tính toán lại tổng tiền của vé master
+    if (hasPriceChanged) {
+      recalculateTongTien(ticket);
+    }
+
     await ticket.save();
 
     res.status(200).json({
       success: true,
-      message: "Cập nhật các chi tiết vé thành công.",
+      message: "Cập nhật thông tin chi tiết vé thành công.",
       data: ticket,
     });
   } catch (error) {
@@ -400,6 +512,84 @@ export const recordPayment = async (req, res) => {
   }
 };
 
+// ... các import và hàm khác
+
+/**
+ * @desc [NÂNG CẤP MỚI NHẤT] Tạo hóa đơn và ghi nhận thanh toán thủ công.
+ * Đồng thời cập nhật lại giá vé nếu có thay đổi từ frontend.
+ * @route POST /api/ve-xe/:ticketId/manual-invoice
+ */
+export const createManualInvoice = async (req, res) => {
+    const { 
+        chiTietIds, phuongThuc, soTien, nhanVienThuTien, donViThanhToan,
+        giaVeCoBan, phuThu, giamGia 
+    } = req.body;
+    const { ticketId } = req.params;
+
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+        if (!['TAI_VAN_PHONG', 'DAI_LY', 'CHUYEN_KHOAN', 'KHONG_THU_TIEN'].includes(phuongThuc)) {
+            throw new Error("Phương thức thanh toán không hợp lệ.");
+        }
+
+        const ticket = await VeXe.findById(ticketId).session(session);
+        if (!ticket) {
+            throw new Error("Không tìm thấy vé xe.");
+        }
+
+        for (const detailId of chiTietIds) {
+            const chiTiet = ticket.chiTiet.id(detailId);
+            if (chiTiet) {
+                if (giaVeCoBan !== undefined) chiTiet.giaVeCoBan = giaVeCoBan;
+                if (phuThu !== undefined) chiTiet.phuThu = phuThu;
+                if (giamGia !== undefined) chiTiet.giamGia = giamGia;
+            }
+        }
+
+        const newHoaDon = new HoaDon({
+            maHoaDon: moment().format('DDHHmmss'),
+            veXe: ticket._id,
+            chiTietVeThanhToan: chiTietIds,
+            soTien: soTien,
+            phuongThuc: ['TAI_VAN_PHONG', 'DAI_LY'].includes(phuongThuc) ? 'TIEN_MAT' : 
+                  phuongThuc === 'CHUYEN_KHOAN' ? 'CHUYEN_KHOAN_MANUAL' : phuongThuc,
+            trangThai: 'THANH_CONG',
+            donViThanhToan: donViThanhToan,
+            noiDungThanhToan: `Thanh toan bo sung cho ve ${ticket.maVe}`,
+        });
+        await newHoaDon.save({ session });
+
+        for (const detailId of chiTietIds) {
+            const chiTiet = ticket.chiTiet.id(detailId);
+            if (chiTiet) {
+                chiTiet.trangThaiChiTiet = "DA_THANH_TOAN";
+                chiTiet.hinhThucThanhToan = phuongThuc;
+                chiTiet.nhanVienThuTien = nhanVienThuTien;
+                if (phuongThuc === 'DAI_LY' || phuongThuc === 'CHUYEN_KHOAN') {
+                    chiTiet.donViThanhToan = donViThanhToan;
+                }
+                chiTiet.hoaDon = newHoaDon._id;
+            }
+        }
+
+        // TÍNH TOÁN LẠI SAU KHI ĐÃ CẬP NHẬT GIÁ
+        recalculateTongTien(ticket);
+        recalculateTongTienDaThanhToan(ticket);
+        ticket.trangThaiThanhToan = ticket.tongTienDaThanhToan >= ticket.tongTien ? "DA_THANH_TOAN" : "THANH_TOAN_MOT_PHAN";
+
+        await ticket.save({ session });
+        await session.commitTransaction();
+        res.status(200).json({ success: true, message: "Ghi nhận thanh toán thành công.", data: ticket });
+
+    } catch (error) {
+        await session.abortTransaction();
+        res.status(400).json({ success: false, message: error.message });
+    } finally {
+        session.endSession();
+    }
+};
 /**
  * @desc Thêm một hoặc nhiều chi tiết vé (ghế) mới vào một vé master đã tồn tại.
  * @route POST /api/ve-xe/:ticketId/details
@@ -573,12 +763,10 @@ export const getTicketCountsForMultipleTrips = async (req, res) => {
     const { chuyenXeIds } = req.body;
 
     if (!Array.isArray(chuyenXeIds) || chuyenXeIds.length === 0) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "chuyenXeIds phải là một mảng và không được rỗng.",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "chuyenXeIds phải là một mảng và không được rỗng.",
+      });
     }
 
     // Sử dụng aggregation để đếm hiệu quả
@@ -616,43 +804,45 @@ export const getTicketCountsForMultipleTrips = async (req, res) => {
   }
 };
 export const getCancelledTicketsByChuyenXeId = async (req, res) => {
-    try {
-        const { chuyenXeId } = req.params;
+  try {
+    const { chuyenXeId } = req.params;
 
-        if (!chuyenXeId) {
-            return res.status(400).json({ success: false, message: 'ID chuyến xe không được để trống.' });
-        }
-
-        const cancelledTickets = await VeXe.aggregate([
-            {
-                $match: {
-                    'chiTiet.chuyenXe': chuyenXeId,
-                    'chiTiet.trangThaiChiTiet': 'DA_HUY',
-                },
-            },
-            {
-                $unwind: '$chiTiet',
-            },
-            {
-                $match: {
-                    'chiTiet.chuyenXe': chuyenXeId,
-                    'chiTiet.trangThaiChiTiet': 'DA_HUY',
-                },
-            },
-            {
-                $group: {
-                    _id: '$_id',
-                    maVe: { $first: '$maVe' },
-                    createdAt: { $first: '$createdAt' },
-                    updatedAt: { $first: '$updatedAt' },
-                    chiTiet: { $push: '$chiTiet' }, // Đẩy các chi tiết đã hủy vào lại mảng
-                },
-            },
-        ]);
-
-        res.status(200).json({ success: true, data: cancelledTickets });
-    } catch (error) {
-        console.error('Lỗi khi lấy danh sách vé đã hủy:', error);
-        res.status(500).json({ success: false, message: 'Lỗi máy chủ.' });
+    if (!chuyenXeId) {
+      return res
+        .status(400)
+        .json({ success: false, message: "ID chuyến xe không được để trống." });
     }
+
+    const cancelledTickets = await VeXe.aggregate([
+      {
+        $match: {
+          "chiTiet.chuyenXe": chuyenXeId,
+          "chiTiet.trangThaiChiTiet": "DA_HUY",
+        },
+      },
+      {
+        $unwind: "$chiTiet",
+      },
+      {
+        $match: {
+          "chiTiet.chuyenXe": chuyenXeId,
+          "chiTiet.trangThaiChiTiet": "DA_HUY",
+        },
+      },
+      {
+        $group: {
+          _id: "$_id",
+          maVe: { $first: "$maVe" },
+          createdAt: { $first: "$createdAt" },
+          updatedAt: { $first: "$updatedAt" },
+          chiTiet: { $push: "$chiTiet" }, // Đẩy các chi tiết đã hủy vào lại mảng
+        },
+      },
+    ]);
+
+    res.status(200).json({ success: true, data: cancelledTickets });
+  } catch (error) {
+    console.error("Lỗi khi lấy danh sách vé đã hủy:", error);
+    res.status(500).json({ success: false, message: "Lỗi máy chủ." });
+  }
 };

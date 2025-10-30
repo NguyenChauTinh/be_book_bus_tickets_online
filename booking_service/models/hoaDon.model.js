@@ -31,6 +31,10 @@ const HoaDonSchema = new mongoose.Schema(
       enum: ['CHO_THANH_TOAN', 'THANH_CONG', 'THAT_BAI'],
       default: 'CHO_THANH_TOAN',
     },
+    donViThanhToan: {
+      type: String, 
+      default: null,
+    },
     noiDungThanhToan: {
       type: String,
       trim: true,
