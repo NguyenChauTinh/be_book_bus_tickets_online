@@ -2,8 +2,8 @@ import LichChayMaster from "../models/lichChay.model.js";
 import ChuyenXe from "../models/chuyenXe.model.js";
 
 const isFrequencyMatch = (tanSuat, date) => {
-  const dayOfMonth = date.getDate();
-  const dayOfWeek = date.getDay();
+  const dayOfMonth = date.getUTCDate();
+  const dayOfWeek = date.getUTCDay();
 
   switch (tanSuat.loaiTanSuat) {
     case "HANG_NGAY":

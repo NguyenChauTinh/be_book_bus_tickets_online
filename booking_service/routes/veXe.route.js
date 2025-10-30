@@ -10,6 +10,7 @@ import {
     cancelMultipleTicketDetails,
     unifiedTransferOrSwapDetails,
     getTicketCountsForMultipleTrips,
+    getCancelledTicketsByChuyenXeId,
 } from '../controllers/veXe.controller.js';
 
 const veXeRouter = express.Router();
@@ -41,4 +42,5 @@ veXeRouter.put('/details/unified-transfer-swap', unifiedTransferOrSwapDetails);
 
 veXeRouter.post('/thong-ke/so-luong-theo-chuyen', getTicketCountsForMultipleTrips);
 
+veXeRouter.get('/chuyen-xe/:chuyenXeId/da-huy', getCancelledTicketsByChuyenXeId);
 export default veXeRouter;

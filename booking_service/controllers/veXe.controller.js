@@ -615,3 +615,44 @@ export const getTicketCountsForMultipleTrips = async (req, res) => {
     res.status(500).json({ success: false, message: "Lỗi máy chủ." });
   }
 };
+export const getCancelledTicketsByChuyenXeId = async (req, res) => {
+    try {
+        const { chuyenXeId } = req.params;
+
+        if (!chuyenXeId) {
+            return res.status(400).json({ success: false, message: 'ID chuyến xe không được để trống.' });
+        }
+
+        const cancelledTickets = await VeXe.aggregate([
+            {
+                $match: {
+                    'chiTiet.chuyenXe': chuyenXeId,
+                    'chiTiet.trangThaiChiTiet': 'DA_HUY',
+                },
+            },
+            {
+                $unwind: '$chiTiet',
+            },
+            {
+                $match: {
+                    'chiTiet.chuyenXe': chuyenXeId,
+                    'chiTiet.trangThaiChiTiet': 'DA_HUY',
+                },
+            },
+            {
+                $group: {
+                    _id: '$_id',
+                    maVe: { $first: '$maVe' },
+                    createdAt: { $first: '$createdAt' },
+                    updatedAt: { $first: '$updatedAt' },
+                    chiTiet: { $push: '$chiTiet' }, // Đẩy các chi tiết đã hủy vào lại mảng
+                },
+            },
+        ]);
+
+        res.status(200).json({ success: true, data: cancelledTickets });
+    } catch (error) {
+        console.error('Lỗi khi lấy danh sách vé đã hủy:', error);
+        res.status(500).json({ success: false, message: 'Lỗi máy chủ.' });
+    }
+};
