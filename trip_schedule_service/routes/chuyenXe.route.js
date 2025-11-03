@@ -7,6 +7,7 @@ import {
   updateChuyenXe,
   getDanhSachChuyenXeTheoNgay,
   getDanhSachChuyenXeTheoNgayVaDiaDiem,
+  getDanhSachChuyenXeFilter,
 } from "../controllers/chuyenXe.controller.js";
 
 const chuyenXeRouter = express.Router();
@@ -17,12 +18,6 @@ chuyenXeRouter.get(
   "/theo-ngay-va-dia-diem",
   getDanhSachChuyenXeTheoNgayVaDiaDiem
 );
-chuyenXeRouter.get("/:id", getChuyenXeByID);
-chuyenXeRouter.post("/", createChuyenXeDonLe);
-chuyenXeRouter.put("/:id", updateChuyenXe);
-chuyenXeRouter.patch("/status/:id", updateTrangThaiChuyenXe);
-chuyenXeRouter.get("/", getDanhSachChuyenXe);
-chuyenXeRouter.get("/theo-ngay", getDanhSachChuyenXeTheoNgay);
 chuyenXeRouter.get("/filter-list", getDanhSachChuyenXeFilter);
 chuyenXeRouter.get("/:id", getChuyenXeByID);
 chuyenXeRouter.post("/", createChuyenXeDonLe);

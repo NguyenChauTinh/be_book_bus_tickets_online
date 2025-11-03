@@ -30,6 +30,8 @@ app.use(
 );
 
 app.use("/api/v1/ve-xe", veXeRouter);
+app.use("/api/v1/payment", paymentRouter);
+// app.use(errorMiddleware);
 
 // LỖI 2: Hàm sortObject bị thiếu đã được thêm vào
 function sortObject(obj) {
@@ -93,9 +95,6 @@ app.post("/api/v1/payment/create-vnpay-url", (req, res) => {
 
   res.json({ paymentUrl: finalVnpUrl });
 });
-app.use("/api/v1/ve-xe", veXeRouter);
-app.use("/api/v1/payment", paymentRouter);
-// app.use(errorMiddleware);
 
 const startServer = async () => {
   try {
