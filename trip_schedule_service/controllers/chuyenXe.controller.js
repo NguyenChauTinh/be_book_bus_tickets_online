@@ -310,7 +310,10 @@ export const getDanhSachChuyenXeTheoNgayVaDiaDiem = async (req, res) => {
       const minutes = trip.tuyenDuong?.thoiGian % 60;
       const duration = `${hours}h ${minutes}p`;
 
-      const totalSeats = trip.loaiXe?.soDoGhe?.length || 0;
+      const totalSeats =
+        trip.loaiXe?.soDoGhe?.filter((ghe) => ghe.trangThai === true)?.length ||
+        0;
+
       const seatsLeft = `${Math.max(
         0,
         totalSeats - (trip.soVeDaDat || 0)

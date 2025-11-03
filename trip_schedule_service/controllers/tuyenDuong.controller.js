@@ -175,3 +175,106 @@ export const toggleActiveTuyenDuong = async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 };
+
+export const getDiaDiemKetNoi = async (req, res) => {
+  try {
+    const { selectedId, type } = req.query;
+
+    const allRoutes = await TuyenDuong.find({ active: true })
+      .populate({
+        path: "chiTietTuyen",
+        populate: { path: "diaDiem", select: "maDiaDiem tenDiaDiem" },
+      })
+      .lean();
+
+    const diaDiemMap = new Map();
+    const validDonTypes = ["don", "trunggian"];
+    const validTraTypes = ["tra", "trunggian"]; // Thêm điều kiện kiểm tra chuỗi "undefined"
+
+    if (!selectedId || selectedId === "undefined") {
+      if (type === "don") {
+        allRoutes.forEach((route) => {
+          route.chiTietTuyen.forEach((stop) => {
+            if (
+              stop.diaDiem &&
+              validDonTypes.includes(stop.loaiDiem?.trim()) &&
+              !diaDiemMap.has(stop.diaDiem._id.toString())
+            ) {
+              diaDiemMap.set(stop.diaDiem._id.toString(), stop.diaDiem);
+            }
+          });
+        });
+      } else if (type === "tra") {
+        // Lấy tất cả điểm TRẢ ban đầu
+        console.log("[API DEBUG] Finding initial 'tra' locations.");
+        allRoutes.forEach((route) => {
+          console.log(`[API DEBUG] Checking route: ${route.tenTuyen}`);
+          route.chiTietTuyen.forEach((stop) => {
+            if (
+              stop.diaDiem &&
+              validTraTypes.includes(stop.loaiDiem?.trim()) &&
+              !diaDiemMap.has(stop.diaDiem._id.toString())
+            ) {
+              diaDiemMap.set(stop.diaDiem._id.toString(), stop.diaDiem);
+            }
+          });
+        });
+      }
+    } else if (type === "don") {
+      // TRƯỜNG HỢP 2: Đã chọn điểm TRẢ (selectedId) -> Tìm điểm ĐÓN
+
+      allRoutes.forEach((route) => {
+        const chiTiet = route.chiTietTuyen;
+        const diemTraIndex = chiTiet.findIndex(
+          (stop) =>
+            stop.diaDiem?._id.toString() === selectedId &&
+            validTraTypes.includes(stop.loaiDiem?.trim())
+        );
+
+        if (diemTraIndex > -1) {
+          for (let i = 0; i < diemTraIndex; i++) {
+            const prevStop = chiTiet[i];
+            if (
+              prevStop.diaDiem &&
+              validDonTypes.includes(prevStop.loaiDiem?.trim()) &&
+              !diaDiemMap.has(prevStop.diaDiem._id.toString())
+            ) {
+              diaDiemMap.set(prevStop.diaDiem._id.toString(), prevStop.diaDiem);
+            }
+          }
+        }
+      });
+    } else if (type === "tra") {
+      // TRƯỜNG HỢP 3: Đã chọn điểm ĐÓN (selectedId) -> Tìm điểm TRẢ
+
+      allRoutes.forEach((route) => {
+        const chiTiet = route.chiTietTuyen;
+        const diemDonIndex = chiTiet.findIndex(
+          (stop) =>
+            stop.diaDiem?._id.toString() === selectedId &&
+            validDonTypes.includes(stop.loaiDiem?.trim())
+        );
+
+        if (diemDonIndex > -1) {
+          for (let i = diemDonIndex + 1; i < chiTiet.length; i++) {
+            const nextStop = chiTiet[i];
+            if (
+              nextStop.diaDiem &&
+              validTraTypes.includes(nextStop.loaiDiem?.trim()) &&
+              !diaDiemMap.has(nextStop.diaDiem._id.toString())
+            ) {
+              diaDiemMap.set(nextStop.diaDiem._id.toString(), nextStop.diaDiem);
+            }
+          }
+        }
+      });
+    } // Chuyển Map thành Array để trả về JSON
+
+    const result = Array.from(diaDiemMap.values());
+    console.log(`[API END] Found ${result.length} locations.`);
+    res.status(200).json({ success: true, data: result });
+  } catch (err) {
+    console.error("Lỗi khi tìm địa điểm kết nối:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
