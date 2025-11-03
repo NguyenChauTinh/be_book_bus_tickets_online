@@ -123,11 +123,7 @@ export const getTicketsByChuyenXeId = async (req, res) => {
     console.error("Lỗi khi lấy danh sách vé theo chuyến xe:", error);
     res.status(500).json({ success: false, message: "Lỗi máy chủ." });
   }
-    res.status(200).json({ success: true, data: tickets });
-  } catch (error) {
-    console.error("Lỗi khi lấy danh sách vé theo chuyến xe:", error);
-    res.status(500).json({ success: false, message: "Lỗi máy chủ." });
-  }
+  res.status(200).json({ success: true, data: tickets });
 };
 
 /**
@@ -160,6 +156,7 @@ export const createTicket = async (req, res) => {
       chiTiet: chiTiet.map((detail) => ({
         ...detail,
         nhanVienTao: nhanVienTao || null,
+        maGiamGia: maGiamGia || null,
       })),
     });
     const paidDetails = newTicket.chiTiet.filter((ct) => ct.hinhThucThanhToan);
@@ -717,28 +714,7 @@ export const unifiedTransferOrSwapDetails = async (req, res) => {
 export const getTicketCountsForMultipleTrips = async (req, res) => {
   try {
     const { chuyenXeIds } = req.body;
-  try {
-    const { chuyenXeIds } = req.body;
 
-    if (!Array.isArray(chuyenXeIds) || chuyenXeIds.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "chuyenXeIds phải là một mảng và không được rỗng.",
-      });
-    }
-
-    // Sử dụng aggregation để đếm hiệu quả
-    const counts = await VeXe.aggregate([
-      // Giai đoạn 1: "Mở" mảng chiTiet ra để xử lý từng vé con
-      { $unwind: "$chiTiet" },
-
-      // Giai đoạn 2: Lọc ra các vé con thuộc danh sách chuyến xe và không bị hủy
-      {
-        $match: {
-          "chiTiet.chuyenXe": { $in: chuyenXeIds },
-          "chiTiet.trangThaiChiTiet": { $ne: "DA_HUY" },
-        },
-      },
     if (!Array.isArray(chuyenXeIds) || chuyenXeIds.length === 0) {
       return res.status(400).json({
         success: false,
@@ -767,20 +743,7 @@ export const getTicketCountsForMultipleTrips = async (req, res) => {
         },
       },
     ]);
-      // Giai đoạn 3: Gom nhóm theo chuyenXe và đếm số lượng
-      {
-        $group: {
-          _id: "$chiTiet.chuyenXe", // Gom nhóm theo ID chuyến xe
-          count: { $sum: 1 }, // Đếm số lượng document trong mỗi nhóm
-        },
-      },
-    ]);
 
-    // Chuyển kết quả từ mảng [{ _id, count }] thành object { chuyenXeId: count }
-    const countsMap = counts.reduce((acc, item) => {
-      acc[item._id] = item.count;
-      return acc;
-    }, {});
     // Chuyển kết quả từ mảng [{ _id, count }] thành object { chuyenXeId: count }
     const countsMap = counts.reduce((acc, item) => {
       acc[item._id] = item.count;
@@ -838,16 +801,16 @@ export const getCancelledTicketsByChuyenXeId = async (req, res) => {
 };
 
 export const getTicketsByChuyenXeList = async (req, res) => {
-try {
-        const { chuyenXeIds } = req.body;
-        
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 20;
-        const sdt = req.query.sdt;
-        const ten = req.query.ten;
-        const ghe = req.query.ghe;
-        
-        const skip = (page - 1) * limit;
+  try {
+    const { chuyenXeIds } = req.body;
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const sdt = req.query.sdt;
+    const ten = req.query.ten;
+    const ghe = req.query.ghe;
+
+    const skip = (page - 1) * limit;
 
     if (!chuyenXeIds || chuyenXeIds.length === 0) {
       return res.status(200).json({
@@ -857,52 +820,44 @@ try {
       });
     }
     const matchStage = {
-            "chiTiet.chuyenXe": { $in: chuyenXeIds } //
-        };
-        if (sdt) {
-            matchStage["chiTiet.soDienThoai"] = new RegExp(sdt, 'i'); //
-        }
-        if (ten) {
-            matchStage["chiTiet.tenKhachHang"] = new RegExp(ten, 'i'); //
-        }
-        if (ghe) {
-            matchStage["chiTiet.maChoNgoi"] = new RegExp(ghe, 'i'); //
-        }
-
-        const aggregationResult = await VeXe.aggregate([
-            { $unwind: "$chiTiet" },
-            { $match: matchStage }, // 3. Áp dụng $match đã cập nhật
-            {
-                $facet: {
-                    data: [
-                        { $skip: skip },
-                        { $limit: limit },
-                        { $project: { _id: "$chiTiet._id", chiTiet: "$chiTiet" } } 
-                    ],
-                    metadata: [
-                        { $count: "total" }
-                    ]
-                }
-            }
-        ]);
-
-        const data = aggregationResult[0].data.map(item => item.chiTiet);
-        const total = aggregationResult[0].metadata[0]?.total || 0;
-
-        res.status(200).json({
-            success: true,
-            data: data,
-            pagination: { total, page, limit },
-            code: 200
-        });
-
-    } catch (error) {
-        console.error("Lỗi khi lọc vé xe:", error);
-        res.status(500).json({ success: false, message: "Lỗi máy chủ." });
+      "chiTiet.chuyenXe": { $in: chuyenXeIds }, //
+    };
+    if (sdt) {
+      matchStage["chiTiet.soDienThoai"] = new RegExp(sdt, "i"); //
     }
-    res.status(200).json({ success: true, data: countsMap });
+    if (ten) {
+      matchStage["chiTiet.tenKhachHang"] = new RegExp(ten, "i"); //
+    }
+    if (ghe) {
+      matchStage["chiTiet.maChoNgoi"] = new RegExp(ghe, "i"); //
+    }
+
+    const aggregationResult = await VeXe.aggregate([
+      { $unwind: "$chiTiet" },
+      { $match: matchStage }, // 3. Áp dụng $match đã cập nhật
+      {
+        $facet: {
+          data: [
+            { $skip: skip },
+            { $limit: limit },
+            { $project: { _id: "$chiTiet._id", chiTiet: "$chiTiet" } },
+          ],
+          metadata: [{ $count: "total" }],
+        },
+      },
+    ]);
+
+    const data = aggregationResult[0].data.map((item) => item.chiTiet);
+    const total = aggregationResult[0].metadata[0]?.total || 0;
+
+    res.status(200).json({
+      success: true,
+      data: data,
+      pagination: { total, page, limit },
+      code: 200,
+    });
   } catch (error) {
-    console.error("Lỗi khi lấy số lượng vé cho nhiều chuyến:", error);
+    console.error("Lỗi khi lọc vé xe:", error);
     res.status(500).json({ success: false, message: "Lỗi máy chủ." });
   }
 };
