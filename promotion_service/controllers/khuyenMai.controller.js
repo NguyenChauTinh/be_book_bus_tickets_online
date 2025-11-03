@@ -204,7 +204,7 @@ export const layKhuyenMaiTheoId = async (req, res) => {
 };
 export const timKhuyenMaiApDung = async (req, res) => {
   try {
-    const { ngay, gio, soLuongVe, loaiHanhTrinh, datLanDau } = req.query;
+    const { ngay, gio, soLuongVeChay, loaiHanhTrinh, datLanDau } = req.query;
 
     const ngayChay = new Date(ngay);
     const gioChay = parseInt(gio, 10);

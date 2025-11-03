@@ -123,7 +123,6 @@ export const getTicketsByChuyenXeId = async (req, res) => {
     console.error("Lỗi khi lấy danh sách vé theo chuyến xe:", error);
     res.status(500).json({ success: false, message: "Lỗi máy chủ." });
   }
-  res.status(200).json({ success: true, data: tickets });
 };
 
 /**
