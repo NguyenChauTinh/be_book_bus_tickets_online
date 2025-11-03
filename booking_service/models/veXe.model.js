@@ -1,4 +1,3 @@
-
 import mongoose from "mongoose";
 import ChiTietVeSchema from "./chiTietVe.model.js";
 
@@ -10,7 +9,7 @@ const VeXeSchema = new mongoose.Schema(
       unique: true,
       trim: true,
     },
-   
+
     tongTien: {
       type: Number,
       required: true,
@@ -30,12 +29,11 @@ const VeXeSchema = new mongoose.Schema(
     chiTiet: {
       type: [ChiTietVeSchema],
       default: [],
-    }
-      
+    },
   },
   {
     timestamps: true,
-    _id: true
+    _id: true,
   }
 );
 

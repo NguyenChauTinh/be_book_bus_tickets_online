@@ -119,7 +119,7 @@ export const getTicketsByChuyenXeId = async (req, res) => {
  */
 export const createTicket = async (req, res) => {
   try {
-    const { chiTiet } = req.body;
+    const { chiTiet, maGiamGia, nhanVienTao } = req.body;
 
     if (!chiTiet || chiTiet.length === 0) {
       return res.status(400).json({
@@ -152,6 +152,8 @@ export const createTicket = async (req, res) => {
       maVe: generateMaVe(),
       chiTiet: chiTiet,
       tongTienDaThanhToan: initialPayment,
+      maGiamGia: maGiamGia,
+      nhanVienTao: nhanVienTao,
     });
 
     recalculateTongTien(newTicket);
@@ -567,12 +569,10 @@ export const getTicketCountsForMultipleTrips = async (req, res) => {
     const { chuyenXeIds } = req.body;
 
     if (!Array.isArray(chuyenXeIds) || chuyenXeIds.length === 0) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "chuyenXeIds phải là một mảng và không được rỗng.",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "chuyenXeIds phải là một mảng và không được rỗng.",
+      });
     }
 
     // Sử dụng aggregation để đếm hiệu quả
