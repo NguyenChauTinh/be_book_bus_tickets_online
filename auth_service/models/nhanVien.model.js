@@ -30,7 +30,7 @@ const nhanVienSchema = new Schema({
   },
   loaiNhanVien:{
     type: String,
-    enum: ["PHONGVE", "TAIXE", "PHUXE"]
+    enum: ["PHONGVE", "TAIXE", "PHUXE", "HETHONG"]
   }
 }, { timestamps: true });
 

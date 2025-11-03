@@ -5,9 +5,11 @@ import dotenv from "dotenv"; // LỖI 4: Thêm import dotenv
 import crypto from "crypto"; // LỖI 3: Sửa 'require' thành 'import'
 import queryString from "qs"; // LỖI 3: Sửa 'require' thành 'import'
 
-import { PORT } from "./config/env.js";
+import ngrok from "ngrok";
+import { NGROK_AUTH_TOKEN, PORT } from "./config/env.js";
 import connectToDatabase from "./database/mongodb.js";
 import veXeRouter from "./routes/veXe.route.js";
+import paymentRouter from "./routes/payment.route.js";
 
 dotenv.config(); // LỖI 4: Cấu hình dotenv ở đầu file
 
@@ -91,11 +93,20 @@ app.post("/api/v1/payment/create-vnpay-url", (req, res) => {
 
   res.json({ paymentUrl: finalVnpUrl });
 });
+app.use("/api/v1/ve-xe", veXeRouter);
+app.use("/api/v1/payment", paymentRouter);
+// app.use(errorMiddleware);
 
-app.listen(PORT, async () => {
-  console.log(`Server is running on port http://localhost:${PORT}`);
-  console.log(new Date());
-  await connectToDatabase();
-});
+const startServer = async () => {
+  try {
+    await connectToDatabase();
+    app.listen(PORT, () => {
+      console.log(`Booking service is running on port ${PORT}`);
+    });
+  } catch (error) {
+    console.error("Failed to start the server", error);
+    process.exit(1);
+  }
+};
 
-export default app;
+startServer();

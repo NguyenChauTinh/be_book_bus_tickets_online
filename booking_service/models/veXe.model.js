@@ -25,7 +25,11 @@ const VeXeSchema = new mongoose.Schema(
       trim: true,
       default: null,
     },
-
+    trangThaiThanhToan: {
+      type: String,
+      enum: ["CHUA_THANH_TOAN", "DA_THANH_TOAN", "THANH_TOAN_MOT_PHAN"],
+      default: "CHUA_THANH_TOAN",
+    },
     chiTiet: {
       type: [ChiTietVeSchema],
       default: [],

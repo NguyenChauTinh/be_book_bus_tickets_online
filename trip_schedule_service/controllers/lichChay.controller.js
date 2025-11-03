@@ -2,8 +2,8 @@ import LichChayMaster from "../models/lichChay.model.js";
 import ChuyenXe from "../models/chuyenXe.model.js";
 
 const isFrequencyMatch = (tanSuat, date) => {
-  const dayOfMonth = date.getDate();
-  const dayOfWeek = date.getDay();
+  const dayOfMonth = date.getUTCDate();
+  const dayOfWeek = date.getUTCDay();
 
   switch (tanSuat.loaiTanSuat) {
     case "HANG_NGAY":
@@ -60,10 +60,25 @@ const createChuyenXeHangLoat = async (
 ) => {
   const startDate = new Date(masterSchedule.ngayBatDau);
   const endDate = new Date(masterSchedule.ngayKetThuc);
-  const dateIterator = new Date(startDate);
+
+  const dateIterator = new Date(
+    Date.UTC(
+      startDate.getUTCFullYear(),
+      startDate.getUTCMonth(),
+      startDate.getUTCDate()
+    )
+  );
+  const finalDate = new Date(
+    Date.UTC(
+      endDate.getUTCFullYear(),
+      endDate.getUTCMonth(),
+      endDate.getUTCDate()
+    )
+  );
+
   const tripsToInsert = [];
 
-  while (dateIterator <= endDate) {
+  while (dateIterator <= finalDate) {
     for (const line of linesToProcess) {
       if (line.active && isFrequencyMatch(line.tanSuat, dateIterator)) {
         const tripCode = generateMaChuyenXe(
@@ -93,7 +108,7 @@ const createChuyenXeHangLoat = async (
         }
       }
     }
-    dateIterator.setDate(dateIterator.getDate() + 1);
+    dateIterator.setUTCDate(dateIterator.getUTCDate() + 1);
   }
 
   if (tripsToInsert.length > 0) {
@@ -265,12 +280,10 @@ export const updateTrangThaiLichChay = async (req, res) => {
     });
   } catch (error) {
     console.error("Lỗi khi vô hiệu hóa lịch chạy Master:", error);
-    return res
-      .status(500)
-      .json({
-        message: "Lỗi máy chủ khi vô hiệu hóa lịch chạy Master.",
-        error: error.message,
-      });
+    return res.status(500).json({
+      message: "Lỗi máy chủ khi vô hiệu hóa lịch chạy Master.",
+      error: error.message,
+    });
   }
 };
 export const getDanhSachLichChay = async (req, res) => {

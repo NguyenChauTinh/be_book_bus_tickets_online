@@ -208,9 +208,7 @@ export const timKhuyenMaiApDung = async (req, res) => {
 
     const ngayChay = new Date(ngay);
     const gioChay = parseInt(gio, 10);
-    const soLuongVeChay = soLuongVe ? parseInt(soLuongVe, 10) : null;
-    const loaiHanhTrinhChay = loaiHanhTrinh;
-    const datLanDauChay = datLanDau === "true";
+    // console.log('ngayChay:', ngayChay, 'gioChay:', gioChay);
 
     const khuyenMaiCoHieuLuc = await KhuyenMai.find({
       trangThai: true,
