@@ -6,23 +6,23 @@ import {
     searchTickets,
     addDetailToTicket,
     updateMultipleTicketDetails,
-    recordPayment,
     cancelMultipleTicketDetails,
     unifiedTransferOrSwapDetails,
     getTicketCountsForMultipleTrips,
     getCancelledTicketsByChuyenXeId,
     createManualInvoice,
+    getTicketsByFilter,
 } from '../controllers/veXe.controller.js';
 
 const veXeRouter = express.Router();
 
 veXeRouter.post('/', createTicket);
 veXeRouter.get('/tim-kiem', searchTickets);
+veXeRouter.get('/filter', getTicketsByFilter);
 veXeRouter.get('/chuyen-xe/:chuyenXeId', getTicketsByChuyenXeId);
 veXeRouter.get('/:ticketId', getTicketById);
 veXeRouter.post('/:ticketId/details', addDetailToTicket);
 veXeRouter.put('/:ticketId/details', updateMultipleTicketDetails);
-// veXeRouter.post('/:ticketId/payments', recordPayment);
 veXeRouter.post('/:ticketId/manual-invoice', createManualInvoice);
 veXeRouter.post('/:ticketId/details/batch-cancel', cancelMultipleTicketDetails);
 veXeRouter.put('/details/unified-transfer-swap', unifiedTransferOrSwapDetails);

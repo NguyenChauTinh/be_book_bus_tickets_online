@@ -19,5 +19,6 @@ export const {
   VNP_RETURN_URL,
   VNP_IPN_URL,
   PORT_OF_NGROK,
+  FRONTEND_URL,
   NGROK_AUTH_TOKEN
 } = process.env;

@@ -1,11 +1,13 @@
 // payment.route.js
 import express from 'express';
-import { createPaymentUrl, vnpay_ipn, vnpay_return } from '../controllers/payment.controller.js';
+import { checkPaymentStatus, createBookingAndPaymentUrl, createPaymentUrl, vnpay_ipn, vnpay_return } from '../controllers/payment.controller.js';
 
-const router = express.Router();
+const paymentRouter = express.Router();
 
-router.post('/create_payment_url', createPaymentUrl);
-router.get('/vnpay_ipn', vnpay_ipn);
-router.get('/vnpay_return', vnpay_return);
+paymentRouter.post('/create_payment_url', createPaymentUrl);
+paymentRouter.post('/create-booking-and-payment', createBookingAndPaymentUrl);
+paymentRouter.get('/vnpay_ipn', vnpay_ipn);
+paymentRouter.get('/vnpay_return', vnpay_return);
+paymentRouter.get("/check-status", checkPaymentStatus);
 
-export default router;
+export default paymentRouter;

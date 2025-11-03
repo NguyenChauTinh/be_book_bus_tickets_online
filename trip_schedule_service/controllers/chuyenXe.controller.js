@@ -61,7 +61,6 @@ export const getDanhSachChuyenXeTheoNgay = async (req, res) => {
 
         // Bước 2: Lấy tất cả ID của các chuyến xe
         const tripIds = trips.map(trip => trip._id.toString());
-        console.log("Trip IDs:", tripIds);
         
         let ticketCountsMap = {};
         try {
@@ -159,6 +158,33 @@ export const updateChuyenXe = async (req, res) => {
             message: 'Cập nhật chuyến xe thành công.',
             data: updatedTrip,
         });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+export const getDanhSachChuyenXeFilter = async (req, res) => {
+    try {
+        const { tuyenDuong, ngayBatDau, ngayKetThuc } = req.query;
+        const filter = {};
+
+        if (tuyenDuong) {
+            filter.tuyenDuong = tuyenDuong;
+        }
+        
+        if (ngayBatDau && ngayKetThuc) {
+            const start = new Date(ngayBatDau);
+            start.setHours(0, 0, 0, 0); 
+            const end = new Date(ngayKetThuc);
+            end.setHours(23, 59, 59, 999); 
+            
+            filter.ngayKhoiHanh = { 
+                $gte: start,
+                $lte: end
+            };
+        }
+        
+        const trips = await ChuyenXe.find(filter).sort({ ngayKhoiHanh: 1, gioKhoiHanh: 1 }); 
+        res.status(200).json({success: true, message: 'Lấy chuyến xe thành công', data: trips});
     } catch (err) {
         res.status(500).json({ message: err.message });
     }

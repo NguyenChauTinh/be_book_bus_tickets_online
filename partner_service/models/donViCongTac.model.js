@@ -23,7 +23,7 @@ const donViCongTacSchema = new mongoose.Schema({
     loaiDonVi: {
         type: String,
         required: true,
-        enum: ['VANPHONG', 'DAILY'],
+        enum: ['VANPHONG', 'DAILY', 'NGANHANG'],
     },
     ghiChu: {
         type: String,

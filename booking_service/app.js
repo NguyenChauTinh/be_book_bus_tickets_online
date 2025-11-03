@@ -6,6 +6,7 @@ import ngrok from 'ngrok';
 import { NGROK_AUTH_TOKEN, PORT } from './config/env.js';
 import connectToDatabase from './database/mongodb.js';
 import veXeRouter from './routes/veXe.route.js';
+import paymentRouter from './routes/payment.route.js';
 
 
 const app = express();
@@ -22,42 +23,21 @@ app.use(
 );
 
 app.use('/api/v1/ve-xe', veXeRouter);
+app.use('/api/v1/payment', paymentRouter);
 // app.use(errorMiddleware);
 
 
 const startServer = async () => {
   try {
     await connectToDatabase();
-
     app.listen(PORT, () => {
-      console.log(`✅ Booking service is running on port ${PORT}`);
-
-      if (process.env.NODE_ENV === 'development') {
-        // Double-check the PORT value before connecting
-        console.log(`Attempting to connect ngrok to port: ${PORT}`);
-
-        ngrok.connect({
-          proto: 'http',
-          addr: PORT, // ✔️ Corrected to use the actual server port
-          authtoken: NGROK_AUTH_TOKEN,
-        }).then(url => {
-          console.log(`🌍 Ngrok tunnel is running at: ${url}`);
-          console.log(`🔗 VNPAY IPN URL should be: ${url}/api/payment/vnpay_ipn`);
-        }).catch(error => {
-          console.error('❌ Error while connecting to Ngrok:', error);
-        });
-      }
+      console.log(`Booking service is running on port ${PORT}`);
     });
   } catch (error) {
-    console.error("❌ Failed to start the server", error);
+    console.error("Failed to start the server", error);
     process.exit(1);
   }
 };
 
 startServer();
-process.on('SIGINT', async () => {
-  console.log('👋 Stopping server and disconnecting Ngrok...');
-  await ngrok.disconnect(); 
-  await ngrok.kill();      
-  process.exit(0);
-});
+

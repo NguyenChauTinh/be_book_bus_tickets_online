@@ -237,7 +237,7 @@ export const timKhuyenMaiApDung = async (req, res) => {
 
         const ngayChay = new Date(ngay);
         const gioChay = parseInt(gio, 10);
-        console.log('ngayChay:', ngayChay, 'gioChay:', gioChay);
+        // console.log('ngayChay:', ngayChay, 'gioChay:', gioChay);
 
         const khuyenMaiCoHieuLuc = await KhuyenMai.find({
             trangThai: true,
