@@ -358,3 +358,140 @@ export const checkPaymentStatus = async (req, res) => {
       .json({ message: "Lỗi server", error: error.message, code: 500 });
   }
 };
+export const filterHoaDon = async (req, res) => {
+  try {
+    const {
+      ngayBatDau,
+      ngayKetThuc,
+      trangThai,
+      donViThanhToan,
+      sdt,
+      page = 1,
+      limit = 20,
+    } = req.query;
+
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // --- 1. Giai đoạn $match chính (trên HoaDon) ---
+    const matchStage = {};
+    if (ngayBatDau && ngayKetThuc) {
+      const start = new Date(ngayBatDau);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(ngayKetThuc);
+      end.setHours(23, 59, 59, 999);
+      matchStage.createdAt = { $gte: start, $lte: end }; 
+    }
+    if (trangThai) {
+      matchStage.trangThai = trangThai; 
+    }
+    if (donViThanhToan) {
+      matchStage.donViThanhToan = donViThanhToan; 
+    }
+
+    // --- 2. Giai đoạn $match phụ (sau khi $lookup VeXe) ---
+    const postLookupMatchStage = {};
+    if (sdt) {
+      // Lọc sđt sau khi đã join VeXe
+      postLookupMatchStage["veXeInfo.chiTiet.soDienThoai"] = new RegExp(sdt, 'i'); 
+    }
+
+    // --- 3. Pipeline gộp ---
+    const aggregationPipeline = [
+      { $match: matchStage },
+      { $sort: { createdAt: -1 } }, // Sắp xếp theo ngày tạo mới nhất
+
+      // Join với VeXe để lấy maVe và soDienThoai
+      {
+        $lookup: {
+          from: "vexes", 
+          localField: "veXe", 
+          foreignField: "_id",
+          as: "veXeInfo",
+        },
+      },
+      { $unwind: { path: "$veXeInfo", preserveNullAndEmptyArrays: true } },
+
+      // Lọc theo $match phụ
+      { $match: postLookupMatchStage },
+
+      // --- 4. Facet để Thống kê VÀ Phân trang ---
+      {
+        $facet: {
+          // A. Dữ liệu phân trang
+          data: [
+            // Project các trường cần thiết cho bảng
+            {
+              $project: {
+                _id: 1,
+                maGiaoDichVNPAY: "$maGiaoDichVNPAY", 
+                maHoaDon: "$maHoaDon", 
+                maDonHang: "$veXeInfo.maVe", 
+                ngayKhoiTao: "$createdAt", 
+                phaiThu: "$soTien", 
+                ngayGhiNhan: "$updatedAt", 
+                trangThai: "$trangThai", 
+                phuongThuc: "$phuongThuc", 
+                soDienThoai: {
+                  $arrayElemAt: ["$veXeInfo.chiTiet.soDienThoai", 0], 
+                },
+              },
+            },
+            { $skip: skip },
+            { $limit: limitNum },
+          ],
+          
+          // B. Metadata (Tổng số)
+          metadata: [{ $count: "total" }],
+
+          // C. Stats (Top component)
+          stats: [
+            {
+              $group: {
+                _id: null,
+                tongGiaoDich: { $sum: 1 },
+                thanhCong: {
+                  $sum: { $cond: [{ $eq: ["$trangThai", "THANH_CONG"] }, 1, 0] }, 
+                },
+                choThanhToan: {
+                  $sum: { $cond: [{ $eq: ["$trangThai", "CHO_THANH_TOAN"] }, 1, 0] }, 
+                },
+                tongTienCho: {
+                  $sum: {
+                    $cond: [
+                      { $eq: ["$trangThai", "CHO_THANH_TOAN"] },
+                      "$soTien", 
+                      0,
+                    ],
+                  },
+                },
+              },
+            },
+          ],
+        },
+      },
+    ];
+
+    const result = await HoaDon.aggregate(aggregationPipeline);
+
+    const data = result[0].data;
+    const total = result[0].metadata[0]?.total || 0;
+    const stats = result[0].stats[0] || {
+      tongGiaoDich: 0,
+      thanhCong: 0,
+      choThanhToan: 0,
+      tongTienCho: 0,
+    };
+
+    res.status(200).json({
+      success: true,
+      data: data,
+      pagination: { total, page: pageNum, limit: limitNum },
+      stats: stats,
+    });
+  } catch (error) {
+    console.error("Lỗi khi lọc hóa đơn:", error);
+    res.status(500).json({ success: false, message: "Lỗi máy chủ." });
+  }
+};

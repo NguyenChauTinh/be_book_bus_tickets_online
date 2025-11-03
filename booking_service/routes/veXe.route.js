@@ -11,14 +11,14 @@ import {
     getTicketCountsForMultipleTrips,
     getCancelledTicketsByChuyenXeId,
     createManualInvoice,
-    getTicketsByFilter,
+    getTicketsByChuyenXeList,
 } from '../controllers/veXe.controller.js';
 
 const veXeRouter = express.Router();
 
 veXeRouter.post('/', createTicket);
 veXeRouter.get('/tim-kiem', searchTickets);
-veXeRouter.get('/filter', getTicketsByFilter);
+veXeRouter.post('/filter-by-chuyen', getTicketsByChuyenXeList);
 veXeRouter.get('/chuyen-xe/:chuyenXeId', getTicketsByChuyenXeId);
 veXeRouter.get('/:ticketId', getTicketById);
 veXeRouter.post('/:ticketId/details', addDetailToTicket);

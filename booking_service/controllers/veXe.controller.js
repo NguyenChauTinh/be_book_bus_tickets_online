@@ -785,78 +785,67 @@ export const getCancelledTicketsByChuyenXeId = async (req, res) => {
   }
 };
 
-export const getTicketsByFilter = async (req, res) => {
-  try {
-    const { ngayBatDau, ngayKetThuc, tuyenDuong, chuyenXeId } = req.query;
+export const getTicketsByChuyenXeList = async (req, res) => {
+try {
+        const { chuyenXeIds } = req.body;
+        
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const sdt = req.query.sdt;
+        const ten = req.query.ten;
+        const ghe = req.query.ghe;
+        
+        const skip = (page - 1) * limit;
 
-    const matchChuyenXe = {};
-
-    if (ngayBatDau && ngayKetThuc) {
-      matchChuyenXe.ngayKhoiHanh = {
-        $gte: new Date(ngayBatDau),
-        $lte: new Date(ngayKetThuc),
-      };
-    } else if (ngayBatDau) {
-      matchChuyenXe.ngayKhoiHanh = { $gte: new Date(ngayBatDau) };
+    if (!chuyenXeIds || chuyenXeIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+        pagination: { total: 0, page, limit },
+      });
     }
+    const matchStage = {
+            "chiTiet.chuyenXe": { $in: chuyenXeIds } //
+        };
+        if (sdt) {
+            matchStage["chiTiet.soDienThoai"] = new RegExp(sdt, 'i'); //
+        }
+        if (ten) {
+            matchStage["chiTiet.tenKhachHang"] = new RegExp(ten, 'i'); //
+        }
+        if (ghe) {
+            matchStage["chiTiet.maChoNgoi"] = new RegExp(ghe, 'i'); //
+        }
 
-    if (tuyenDuong) {
-      matchChuyenXe.tuyenDuong = tuyenDuong; 
+        const aggregationResult = await VeXe.aggregate([
+            { $unwind: "$chiTiet" },
+            { $match: matchStage }, // 3. Áp dụng $match đã cập nhật
+            {
+                $facet: {
+                    data: [
+                        { $skip: skip },
+                        { $limit: limit },
+                        { $project: { _id: "$chiTiet._id", chiTiet: "$chiTiet" } } 
+                    ],
+                    metadata: [
+                        { $count: "total" }
+                    ]
+                }
+            }
+        ]);
+
+        const data = aggregationResult[0].data.map(item => item.chiTiet);
+        const total = aggregationResult[0].metadata[0]?.total || 0;
+
+        res.status(200).json({
+            success: true,
+            data: data,
+            pagination: { total, page, limit },
+            code: 200
+        });
+
+    } catch (error) {
+        console.error("Lỗi khi lọc vé xe:", error);
+        res.status(500).json({ success: false, message: "Lỗi máy chủ." });
     }
-    if (chuyenXeId) {
-      matchChuyenXe._id = new Types.ObjectId(chuyenXeId);
-    }
-
-    const data = await ChuyenXe.aggregate([
-      { $match: matchChuyenXe },
-      
-      {
-        $addFields: {
-          chuyenXeIdString: { $toString: "$_id" }
-        }
-      },
-      
-      {
-        $lookup: {
-          from: "vexes", 
-          localField: "chuyenXeIdString",
-          foreignField: "chiTiet.chuyenXe",
-          as: "veXeInfo",
-        },
-      },
-      { $unwind: "$veXeInfo" }, 
-      
-      { $unwind: "$veXeInfo.chiTiet" }, 
-      
-      {
-        $match: {
-          $expr: { $eq: ["$veXeInfo.chiTiet.chuyenXe", "$chuyenXeIdString"] }
-        }
-      },
-      
-      {
-        $project: {
-          _id: "$veXeInfo.chiTiet._id", 
-          tenKhachHang: "$veXeInfo.chiTiet.tenKhachHang", 
-          soDienThoai: "$veXeInfo.chiTiet.soDienThoai",
-          soGhe: "$veXeInfo.chiTiet.maChoNgoi", 
-          tuyenDuong: "$tuyenDuong", 
-          gioKhoiHanh: "$gioKhoiHanh", 
-          ngayKhoiHanh: "$ngayKhoiHanh", 
-          thanhTien: { 
-            $subtract: [
-              { $add: ["$veXeInfo.chiTiet.giaVeCoBan", "$veXeInfo.chiTiet.phuThu"] },
-              "$veXeInfo.chiTiet.giamGia"
-            ]
-          },
-          trangThai: "$veXeInfo.chiTiet.trangThaiChiTiet", 
-        }
-      }
-    ]);
-
-    res.status(200).json({ success: true, data: data });
-  } catch (error) {
-    console.error("Lỗi khi lọc vé xe:", error);
-    res.status(500).json({ success: false, message: "Lỗi máy chủ." });
-  }
 };

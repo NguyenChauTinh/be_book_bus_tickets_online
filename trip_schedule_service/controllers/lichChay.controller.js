@@ -59,16 +59,27 @@ const generateMaChuyenXe = (tuyenDuong, date, gioKhoiHanhPhut) => {
 const createChuyenXeHangLoat = async (masterSchedule, linesToProcess = masterSchedule.lines) => {
   const startDate = new Date(masterSchedule.ngayBatDau);
   const endDate = new Date(masterSchedule.ngayKetThuc);
-  const dateIterator = new Date(startDate);
+
+  const dateIterator = new Date(Date.UTC(
+    startDate.getUTCFullYear(),
+    startDate.getUTCMonth(),
+    startDate.getUTCDate()
+  ));
+  const finalDate = new Date(Date.UTC(
+    endDate.getUTCFullYear(),
+    endDate.getUTCMonth(),
+    endDate.getUTCDate()
+  ));
+
   const tripsToInsert = [];
 
-  while (dateIterator <= endDate) {
+  while (dateIterator <= finalDate) {
     for (const line of linesToProcess) { 
-      if (line.active && isFrequencyMatch(line.tanSuat, dateIterator)) {
+      if (line.active && isFrequencyMatch(line.tanSuat, dateIterator)) { 
         const tripCode = generateMaChuyenXe(
           masterSchedule.tuyenDuong,
           dateIterator,
-          line.gioKhoiHanh 
+          line.gioKhoiHanh
         );
 
         const existingTrip = await ChuyenXe.findOne({ maChuyenXe: tripCode });
@@ -92,7 +103,7 @@ const createChuyenXeHangLoat = async (masterSchedule, linesToProcess = masterSch
         }
       }
     }
-    dateIterator.setDate(dateIterator.getDate() + 1);
+    dateIterator.setUTCDate(dateIterator.getUTCDate() + 1);
   }
 
   if (tripsToInsert.length > 0) {

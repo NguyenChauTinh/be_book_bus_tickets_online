@@ -5,13 +5,15 @@ import {
     updateTrangThaiChuyenXe,
     createChuyenXeDonLe,
     updateChuyenXe,
-    getDanhSachChuyenXeTheoNgay, 
+    getDanhSachChuyenXeTheoNgay,
+    getDanhSachChuyenXeFilter, 
 } from '../controllers/chuyenXe.controller.js';
 
 const chuyenXeRouter = express.Router();
 
 chuyenXeRouter.get('/', getDanhSachChuyenXe);
 chuyenXeRouter.get('/theo-ngay', getDanhSachChuyenXeTheoNgay);
+chuyenXeRouter.get('/filter-list', getDanhSachChuyenXeFilter);
 chuyenXeRouter.get('/:id', getChuyenXeByID);
 chuyenXeRouter.post('/', createChuyenXeDonLe);
 chuyenXeRouter.put('/:id', updateChuyenXe);
