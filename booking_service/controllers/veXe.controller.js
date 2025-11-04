@@ -136,7 +136,7 @@ export const createTicket = async (req, res) => {
   session.startTransaction();
   try {
     console.log("Đang gọi hàm tạo vé");
-    const { chiTiet, nhanVienTao } = req.body;
+    const { chiTiet, nhanVienTao, maGiamGia } = req.body;
 
     if (!chiTiet || chiTiet.length === 0) {
       return res.status(400).json({
@@ -153,6 +153,7 @@ export const createTicket = async (req, res) => {
 
     const newTicket = new VeXe({
       maVe: generateMaVe(),
+      maGiamGia: maGiamGia || null,
       chiTiet: chiTiet.map((detail) => ({
         ...detail,
         nhanVienTao: nhanVienTao || null,
@@ -271,7 +272,7 @@ export const updateMultipleTicketDetails = async (req, res) => {
     console.log("Đang gọi cập nhật vé");
 
     const { ticketId } = req.params;
-    const { updatesList } = req.body;
+    const { updatesList, maGiamGia } = req.body;
 
     if (
       !mongoose.Types.ObjectId.isValid(ticketId) ||
@@ -290,6 +291,9 @@ export const updateMultipleTicketDetails = async (req, res) => {
       return res
         .status(404)
         .json({ success: false, message: "Không tìm thấy vé xe.", code: 400 });
+    }
+    if (maGiamGia !== undefined) {
+      ticket.maGiamGia = maGiamGia;
     }
 
     const allowedUpdates = [
@@ -786,16 +790,16 @@ export const getCancelledTicketsByChuyenXeId = async (req, res) => {
 };
 
 export const getTicketsByChuyenXeList = async (req, res) => {
-try {
-        const { chuyenXeIds } = req.body;
-        
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 20;
-        const sdt = req.query.sdt;
-        const ten = req.query.ten;
-        const ghe = req.query.ghe;
-        
-        const skip = (page - 1) * limit;
+  try {
+    const { chuyenXeIds } = req.body;
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const sdt = req.query.sdt;
+    const ten = req.query.ten;
+    const ghe = req.query.ghe;
+
+    const skip = (page - 1) * limit;
 
     if (!chuyenXeIds || chuyenXeIds.length === 0) {
       return res.status(200).json({
@@ -805,47 +809,44 @@ try {
       });
     }
     const matchStage = {
-            "chiTiet.chuyenXe": { $in: chuyenXeIds } //
-        };
-        if (sdt) {
-            matchStage["chiTiet.soDienThoai"] = new RegExp(sdt, 'i'); //
-        }
-        if (ten) {
-            matchStage["chiTiet.tenKhachHang"] = new RegExp(ten, 'i'); //
-        }
-        if (ghe) {
-            matchStage["chiTiet.maChoNgoi"] = new RegExp(ghe, 'i'); //
-        }
-
-        const aggregationResult = await VeXe.aggregate([
-            { $unwind: "$chiTiet" },
-            { $match: matchStage }, // 3. Áp dụng $match đã cập nhật
-            {
-                $facet: {
-                    data: [
-                        { $skip: skip },
-                        { $limit: limit },
-                        { $project: { _id: "$chiTiet._id", chiTiet: "$chiTiet" } } 
-                    ],
-                    metadata: [
-                        { $count: "total" }
-                    ]
-                }
-            }
-        ]);
-
-        const data = aggregationResult[0].data.map(item => item.chiTiet);
-        const total = aggregationResult[0].metadata[0]?.total || 0;
-
-        res.status(200).json({
-            success: true,
-            data: data,
-            pagination: { total, page, limit },
-            code: 200
-        });
-
-    } catch (error) {
-        console.error("Lỗi khi lọc vé xe:", error);
-        res.status(500).json({ success: false, message: "Lỗi máy chủ." });
+      "chiTiet.chuyenXe": { $in: chuyenXeIds }, //
+    };
+    if (sdt) {
+      matchStage["chiTiet.soDienThoai"] = new RegExp(sdt, "i"); //
     }
+    if (ten) {
+      matchStage["chiTiet.tenKhachHang"] = new RegExp(ten, "i"); //
+    }
+    if (ghe) {
+      matchStage["chiTiet.maChoNgoi"] = new RegExp(ghe, "i"); //
+    }
+
+    const aggregationResult = await VeXe.aggregate([
+      { $unwind: "$chiTiet" },
+      { $match: matchStage }, // 3. Áp dụng $match đã cập nhật
+      {
+        $facet: {
+          data: [
+            { $skip: skip },
+            { $limit: limit },
+            { $project: { _id: "$chiTiet._id", chiTiet: "$chiTiet" } },
+          ],
+          metadata: [{ $count: "total" }],
+        },
+      },
+    ]);
+
+    const data = aggregationResult[0].data.map((item) => item.chiTiet);
+    const total = aggregationResult[0].metadata[0]?.total || 0;
+
+    res.status(200).json({
+      success: true,
+      data: data,
+      pagination: { total, page, limit },
+      code: 200,
+    });
+  } catch (error) {
+    console.error("Lỗi khi lọc vé xe:", error);
+    res.status(500).json({ success: false, message: "Lỗi máy chủ." });
+  }
 };
