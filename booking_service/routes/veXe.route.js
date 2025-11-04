@@ -12,13 +12,14 @@ import {
     getCancelledTicketsByChuyenXeId,
     createManualInvoice,
     getTicketsByChuyenXeList,
+    filterVeXeMaster,
 } from '../controllers/veXe.controller.js';
 
 const veXeRouter = express.Router();
 
 veXeRouter.post('/', createTicket);
 veXeRouter.get('/tim-kiem', searchTickets);
-veXeRouter.post('/filter-by-chuyen', getTicketsByChuyenXeList);
+veXeRouter.post('/filter-by-chuyen', filterVeXeMaster);
 veXeRouter.get('/chuyen-xe/:chuyenXeId', getTicketsByChuyenXeId);
 veXeRouter.get('/:ticketId', getTicketById);
 veXeRouter.post('/:ticketId/details', addDetailToTicket);

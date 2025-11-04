@@ -34,6 +34,10 @@ const VeXeSchema = new mongoose.Schema(
       type: [ChiTietVeSchema],
       default: [],
     },
+    userId: {
+      type: String,
+      default: null
+    }
   },
   {
     timestamps: true,

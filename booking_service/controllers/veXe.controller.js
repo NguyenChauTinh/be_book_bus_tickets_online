@@ -135,7 +135,7 @@ export const createTicket = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
-    const { chiTiet, maGiamGia, nhanVienTao } = req.body;
+    const { chiTiet, maGiamGia, nhanVienTao, userId } = req.body;
 
     if (!chiTiet || chiTiet.length === 0) {
       return res.status(400).json({
@@ -153,6 +153,7 @@ export const createTicket = async (req, res) => {
     const newTicket = new VeXe({
       maVe: generateMaVe(),
       maGiamGia: maGiamGia || null,
+      userId: userId || null,
       chiTiet: chiTiet.map((detail) => ({
         ...detail,
         nhanVienTao: nhanVienTao || null,
@@ -861,6 +862,103 @@ export const getTicketsByChuyenXeList = async (req, res) => {
     });
   } catch (error) {
     console.error("Lỗi khi lọc vé xe:", error);
+    res.status(500).json({ success: false, message: "Lỗi máy chủ." });
+  }
+};
+
+export const filterVeXeMaster = async (req, res) => {
+  try {
+    const { chuyenXeIds } = req.body;
+    const { page = 1, limit = 20, sdt, ten, ghe } = req.query;
+
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // --- 1. Xây dựng $match stage ---
+    // Tìm các VeXe có chiTiet phù hợp
+    const matchStage = {};
+    const elemMatchFilters = {};
+
+    if (chuyenXeIds && chuyenXeIds.length > 0) {
+      elemMatchFilters.chuyenXe = { $in: chuyenXeIds }; 
+    }
+    if (sdt) {
+      elemMatchFilters.soDienThoai = new RegExp(sdt, "i"); 
+    }
+    if (ten) {
+      elemMatchFilters.tenKhachHang = new RegExp(ten, "i"); 
+    }
+    if (ghe) {
+      elemMatchFilters.maChoNgoi = new RegExp(ghe, "i"); 
+    }
+    
+    // Chỉ tìm kiếm nếu có ít nhất 1 filter
+    if (Object.keys(elemMatchFilters).length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+        pagination: { total: 0, page: pageNum, limit: limitNum },
+      });
+    }
+    
+    matchStage.chiTiet = { $elemMatch: elemMatchFilters };
+
+    // --- 2. Aggregation Pipeline ---
+    const aggregationResult = await VeXe.aggregate([
+      { $match: matchStage },
+      { $sort: { createdAt: -1 } }, 
+      {
+        $facet: {
+          // A. Dữ liệu (Đã phân trang và lookup Hóa đơn)
+          data: [
+            { $skip: skip },
+            { $limit: limitNum },
+            // Populate chiTiet.hoaDon để hiển thị trong modal
+            { $unwind: "$chiTiet" },
+            {
+              $lookup: {
+                from: "hoadons", 
+                localField: "chiTiet.hoaDon", 
+                foreignField: "_id", 
+                as: "hoaDonInfo",
+              },
+            },
+            {
+              $addFields: {
+                "chiTiet.hoaDon": { $arrayElemAt: ["$hoaDonInfo", 0] },
+              },
+            },
+            {
+              $group: {
+                _id: "$_id",
+                maVe: { $first: "$maVe" }, 
+                tongTien: { $first: "$tongTien" }, 
+                tongTienDaThanhToan: { $first: "$tongTienDaThanhToan" }, 
+                maGiamGia: { $first: "$maGiamGia" }, 
+                trangThaiThanhToan: { $first: "$trangThaiThanhToan" }, 
+                createdAt: { $first: "$createdAt" }, 
+                chiTiet: { $push: "$chiTiet" }, 
+              },
+            },
+            { $sort: { createdAt: -1 } } 
+          ],
+          metadata: [{ $count: "total" }],
+        },
+      },
+    ]);
+
+    const data = aggregationResult[0].data;
+    const total = aggregationResult[0].metadata[0]?.total || 0;
+
+    res.status(200).json({
+      success: true,
+      data: data,
+      pagination: { total, page: pageNum, limit: limitNum },
+      code: 200,
+    });
+  } catch (error) {
+    console.error("Lỗi khi lọc vé xe master:", error);
     res.status(500).json({ success: false, message: "Lỗi máy chủ." });
   }
 };

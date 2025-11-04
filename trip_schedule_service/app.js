@@ -20,10 +20,11 @@ app.use(cookieParser());
 
 app.use(
   cors({
-    origin: ["http://localhost:3000", "http://localhost:8081"], // thêm dòng này
+    origin: true, // <-- Bỏ dòng này
+    // origin: "*",  // <-- Thêm dòng này (Cho phép tất cả)
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    // methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    // allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 

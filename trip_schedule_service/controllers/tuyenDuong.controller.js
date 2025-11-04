@@ -189,7 +189,7 @@ export const getDiaDiemKetNoi = async (req, res) => {
 
     const diaDiemMap = new Map();
     const validDonTypes = ["don", "trunggian"];
-    const validTraTypes = ["tra", "trunggian"]; // Thêm điều kiện kiểm tra chuỗi "undefined"
+    const validTraTypes = ["tra", "trunggian"]; 
 
     if (!selectedId || selectedId === "undefined") {
       if (type === "don") {
