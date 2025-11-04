@@ -135,8 +135,7 @@ export const createTicket = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
-    console.log("Đang gọi hàm tạo vé");
-    const { chiTiet, nhanVienTao, maGiamGia } = req.body;
+    const { chiTiet, maGiamGia, nhanVienTao } = req.body;
 
     if (!chiTiet || chiTiet.length === 0) {
       return res.status(400).json({
@@ -157,6 +156,7 @@ export const createTicket = async (req, res) => {
       chiTiet: chiTiet.map((detail) => ({
         ...detail,
         nhanVienTao: nhanVienTao || null,
+        maGiamGia: maGiamGia || null,
       })),
     });
     const paidDetails = newTicket.chiTiet.filter((ct) => ct.hinhThucThanhToan);
@@ -234,10 +234,11 @@ export const searchTickets = async (req, res) => {
   try {
     const { query } = req.query;
 
-    if (!query || query.length < 3) {
+    // ✅ Chỉ cần không rỗng là được
+    if (!query || query.trim().length === 0) {
       return res.status(400).json({
         success: false,
-        message: "Vui lòng nhập tối thiểu 3 ký tự để tìm kiếm.",
+        message: "Vui lòng nhập từ khóa tìm kiếm.",
       });
     }
 
@@ -560,6 +561,10 @@ export const addDetailToTicket = async (req, res) => {
         success: false,
         message: "Dữ liệu chi tiết vé mới hoặc ID chuyến xe không hợp lệ.",
       });
+      return res.status(400).json({
+        success: false,
+        message: "Dữ liệu chi tiết vé mới hoặc ID chuyến xe không hợp lệ.",
+      });
     }
 
     const ticket = await VeXe.findById(ticketId);
@@ -580,6 +585,11 @@ export const addDetailToTicket = async (req, res) => {
     recalculateTongTien(ticket);
 
     await ticket.save();
+    res.status(200).json({
+      success: true,
+      message: `Thêm ${chiTiet.length} ghế mới vào vé thành công.`,
+      data: ticket,
+    });
     res.status(200).json({
       success: true,
       message: `Thêm ${chiTiet.length} ghế mới vào vé thành công.`,
@@ -686,6 +696,10 @@ export const unifiedTransferOrSwapDetails = async (req, res) => {
     );
 
     await session.commitTransaction();
+    res.status(200).json({
+      success: true,
+      message: "Thao tác chuyển/hoán đổi vé thành công.",
+    });
     res.status(200).json({
       success: true,
       message: "Thao tác chuyển/hoán đổi vé thành công.",
