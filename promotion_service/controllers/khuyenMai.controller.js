@@ -231,13 +231,62 @@ export const layKhuyenMaiTheoId = async (req, res) => {
   }
 };
 //Hàm khuyến mãi áp dụng
+// export const timKhuyenMaiApDung = async (req, res) => {
+//     try {
+//         const { ngay, gio } = req.query; 
+
+//         const ngayChay = new Date(ngay);
+//         const gioChay = parseInt(gio, 10);
+//         // console.log('ngayChay:', ngayChay, 'gioChay:', gioChay);
+
+//         const khuyenMaiCoHieuLuc = await KhuyenMai.find({
+//             trangThai: true,
+//             ngayBatDau: { $lte: ngayChay },
+//             ngayKetThuc: { $gte: ngayChay },
+//         });
+
+//         if (!khuyenMaiCoHieuLuc.length) {
+//             return res.json({ success: true, data: [] }); 
+//         }
+
+//         const khuyenMaiApDung = khuyenMaiCoHieuLuc.filter(km => {
+//             return km.lines.some(line => {
+//                 if (!line.trangThai) return false; 
+
+//                 if (!line.dieuKienApDung || line.dieuKienApDung.length === 0) {
+//                     return true;
+//                 }
+
+//                 return line.dieuKienApDung.every(dk => {
+//                     switch (dk.loaiDieuKien) {
+//                         case 'GIO_THAP_DIEM':
+//                           console.log('Checking GIO_THAP_DIEM with gioBatDau:', dk.gioBatDau, 'gioKetThuc:', dk.gioKetThuc, 'ket qua:', gioChay >= dk.gioBatDau && gioChay <= dk.gioKetThuc);
+//                             return gioChay >= dk.gioBatDau && gioChay <= dk.gioKetThuc;
+                        
+//                         default:
+//                             return false; 
+//                     }
+//                 });
+//             });
+//         });
+
+//         res.json({ success: true, data: khuyenMaiApDung });
+
+//     } catch (err) {
+//         res.status(500).json({ error: "Lỗi máy chủ khi tìm khuyến mãi.", details: err.message });
+//     }
+// };
 export const timKhuyenMaiApDung = async (req, res) => {
     try {
-        const { ngay, gio } = req.query; 
+        const { ngay, gio, soLuongVe, loaiHanhTrinh, datLanDau } = req.query;
 
         const ngayChay = new Date(ngay);
         const gioChay = parseInt(gio, 10);
-        // console.log('ngayChay:', ngayChay, 'gioChay:', gioChay);
+        const soLuongVeChay = soLuongVe ? parseInt(soLuongVe, 10) : null;
+        const loaiHanhTrinhChay = loaiHanhTrinh; 
+        const datLanDauChay = datLanDau === 'true'; 
+
+
 
         const khuyenMaiCoHieuLuc = await KhuyenMai.find({
             trangThai: true,
@@ -246,25 +295,36 @@ export const timKhuyenMaiApDung = async (req, res) => {
         });
 
         if (!khuyenMaiCoHieuLuc.length) {
-            return res.json({ success: true, data: [] }); 
+            return res.json({ success: true, data: [] });
         }
 
         const khuyenMaiApDung = khuyenMaiCoHieuLuc.filter(km => {
             return km.lines.some(line => {
-                if (!line.trangThai) return false; 
+                if (!line.trangThai) return false;
 
                 if (!line.dieuKienApDung || line.dieuKienApDung.length === 0) {
-                    return true;
+                    return true; 
                 }
 
                 return line.dieuKienApDung.every(dk => {
                     switch (dk.loaiDieuKien) {
                         case 'GIO_THAP_DIEM':
-                          console.log('Checking GIO_THAP_DIEM with gioBatDau:', dk.gioBatDau, 'gioKetThuc:', dk.gioKetThuc, 'ket qua:', gioChay >= dk.gioBatDau && gioChay <= dk.gioKetThuc);
+                            if (isNaN(gioChay)) return false; 
                             return gioChay >= dk.gioBatDau && gioChay <= dk.gioKetThuc;
+
+                        case 'SO_LUONG_VE':
+                            if (!soLuongVeChay || isNaN(soLuongVeChay)) return false;
+                            return soLuongVeChay >= dk.soLuongToiThieu;
+
+                        case 'LOAI_HANH_TRINH':
+                            if (!loaiHanhTrinhChay) return false;
+                            return loaiHanhTrinhChay === dk.loaiHanhTrinh;
+                        
+                        case 'DAT_LAN_DAU':
+                            return datLanDauChay === true;
                         
                         default:
-                            return false; 
+                            return false;
                     }
                 });
             });

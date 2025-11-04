@@ -1,47 +1,38 @@
-import jwt from "jsonwebtoken";
-import { JWT_SECRET } from "../config/env.js";
-import User from "../models/user.model.js";
-import redisClient from "../utils/redisClient.js";
+import jwt from 'jsonwebtoken';
+import redisClient from '../config/redis.js'; 
 
-export const authorize = async (req, res, next) => {
+const authMiddleware = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res
+      .status(401)
+      .json({ message: 'Truy cập bị từ chối. Không tìm thấy token.' });
+  }
+
+  const token = authHeader.split(' ')[1];
+
   try {
-    const authHeader = req.headers.authorization;
-    let token;
-    if (authHeader && authHeader.startsWith("Bearer")) {
-      token = authHeader.split(" ")[1];
-    }
-    console.log("Token: ", token.trim());
-    if (!token) {
-      return res.status(401).json({
-        status: "fail",
-        message: "You are not logged in! Please log in to get access.",
-      });
-    }
-    const isRevoked = await redisClient.get(token);
-    if (isRevoked) {
-      return res.status(401).json({
-        status: "fail",
-        message: "The token has been revoked! Please log in again.",
-      });
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decoded.userId;
+
+    const sessionKey = `session:${userId}`;
+    const sessionExists = await redisClient.get(sessionKey);
+
+    if (!sessionExists) {
+      return res
+        .status(401)
+        .json({ message: 'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.' });
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET);
-
-    const currentUser = await User.findById(decoded.claims.id);
-
-    if (!currentUser) {
-      return res.status(401).json({
-        status: "fail",
-        message: "The current is not exist in database.",
-      });
-    }
-    req.user = decoded;
+    req.user = { id: userId };
     next();
   } catch (error) {
-    res.status(401).json({
-      success: false,
-      message: "Unauthorized !!!",
-      error: error.message,
-    });
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: 'Token đã hết hạn.' });
+    }
+    return res.status(401).json({ message: 'Token không hợp lệ.' });
   }
 };
+
+export default authMiddleware;
