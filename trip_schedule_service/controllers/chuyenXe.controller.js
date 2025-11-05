@@ -108,7 +108,9 @@ export const getDanhSachChuyenXeTheoNgay = async (req, res) => {
 
 export const getChuyenXeByID = async (req, res) => {
   try {
-    const trip = await ChuyenXe.findOne({ maChuyenXe: req.params.id });
+    const trip = await ChuyenXe.findOne({ maChuyenXe: req.params.id }).populate(
+      "loaiXe"
+    );
     if (!trip) {
       return res.status(404).json({ message: "Không tìm thấy chuyến xe." });
     }
@@ -116,6 +118,23 @@ export const getChuyenXeByID = async (req, res) => {
     res
       .status(200)
       .json({ success: true, message: "Lấy chuyến xe thành công", data: trip });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+export const getChuyenXeByObjId = async (req, res) => {
+  try {
+    const trip = await ChuyenXe.findById(req.params.id).populate("loaiXe");
+    if (!trip) {
+      return res.status(404).json({ message: "Không tìm thấy chuyến xe." });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Lấy chuyến xe thành công",
+      data: trip,
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -210,13 +229,11 @@ export const getDanhSachChuyenXeFilter = async (req, res) => {
       ngayKhoiHanh: 1,
       gioKhoiHanh: 1,
     });
-    res
-      .status(200)
-      .json({
-        success: true,
-        message: "Lấy chuyến xe thành công",
-        data: trips,
-      });
+    res.status(200).json({
+      success: true,
+      message: "Lấy chuyến xe thành công",
+      data: trips,
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

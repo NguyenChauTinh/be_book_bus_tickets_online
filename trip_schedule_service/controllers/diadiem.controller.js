@@ -180,3 +180,30 @@ export const toggleActiveDiaDiem = async (req, res, next) => {
     });
   }
 };
+
+export const timDiaDiemTheoTen = async (req, res) => {
+  try {
+    const { ten } = req.query;
+    if (!ten) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Vui lòng cung cấp tên địa điểm." });
+    }
+
+    // Tìm kiếm tương đối, không phân biệt hoa/thường
+    // Ví dụ: "hà nội" sẽ khớp với "Bến xe Giáp Bát, Hà Nội"
+    const diaDiem = await DiaDiem.findOne({
+      tenDiaDiem: { $regex: ten, $options: "i" },
+    }).lean();
+
+    if (!diaDiem) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy địa điểm." });
+    }
+
+    res.status(200).json({ success: true, data: diaDiem });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
