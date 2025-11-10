@@ -88,10 +88,10 @@ const ChiTietVeSchema = new mongoose.Schema(
       default: "DAT_CHO",
     },
     hoaDon: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'HoaDon',
-    default: null,
-}
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "HoaDon",
+      default: null,
+    },
   },
   { _id: true }
 );

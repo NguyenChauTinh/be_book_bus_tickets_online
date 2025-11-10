@@ -28,6 +28,7 @@ const ChuyenXeSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "LoaiXe",
       required: true,
+      index: true,
     },
     loaiDichVu: {
       type: String,
@@ -38,6 +39,7 @@ const ChuyenXeSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Xe",
       default: null,
+      index: true,
     },
     laiXe: {
       type: String,
