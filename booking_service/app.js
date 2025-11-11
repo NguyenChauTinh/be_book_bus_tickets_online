@@ -39,23 +39,32 @@ function sortObject(obj) {
   let key;
   for (key in obj) {
     if (obj.hasOwnProperty(key)) {
-      str.push(encodeURIComponent(key));
+      str.push(key); // SỬA: Chỉ push key, không encode
     }
   }
   str.sort();
   for (key = 0; key < str.length; key++) {
+    // SỬA: Dùng key gốc (str[key]) để lấy value từ obj
     sorted[str[key]] = encodeURIComponent(obj[str[key]]).replace(/%20/g, "+");
   }
   return sorted;
 }
 
-// LỖI 1: Sửa lại đường dẫn route cho chính xác
 app.post("/api/v1/payment/create-vnpay-url", (req, res) => {
-  // Lấy thông tin từ .env (Giờ đã hoạt động)
   const tmnCode = process.env.VNP_TMNCODE;
   const secretKey = process.env.VNP_HASHSECRET;
   const vnpUrl = process.env.VNP_URL;
-  const returnUrl = process.env.VNP_RETURN_URL; // Dùng biến env cho returnUrl
+  const returnUrl = process.env.VNP_RETURN_URL;
+
+  let ipAddr = req.ip;
+  if (ipAddr.substr(0, 7) == "::ffff:") {
+    ipAddr = ipAddr.substr(7);
+  }
+  const isPrivateIp =
+    /^(10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|192\.168\.|::1)/.test(ipAddr);
+  if (isPrivateIp || ipAddr === "127.0.0.1") {
+    ipAddr = "127.0.0.1";
+  }
 
   const date = new Date();
   const createDate =
@@ -68,29 +77,52 @@ app.post("/api/v1/payment/create-vnpay-url", (req, res) => {
 
   const orderId = `order_${Date.now()}`;
   const amount = req.body.amount;
+  // SỬA TẠM THỜI: Xóa dấu tiếng Việt để test
   const orderInfo = req.body.orderInfo || "Thanh toan don hang";
+
   let vnp_Params = {};
   vnp_Params["vnp_Version"] = "2.1.0";
   vnp_Params["vnp_Command"] = "pay";
   vnp_Params["vnp_TmnCode"] = tmnCode;
-  vnp_Params["vnp_Amount"] = amount * 100;
+  vnp_Params["vnp_Amount"] = Math.round(amount * 100);
   vnp_Params["vnp_CreateDate"] = createDate;
   vnp_Params["vnp_CurrCode"] = "VND";
-  vnp_Params["vnp_IpAddr"] = req.ip || "127.0.0.1";
+  vnp_Params["vnp_IpAddr"] = ipAddr;
   vnp_Params["vnp_Locale"] = "vn";
   vnp_Params["vnp_OrderInfo"] = orderInfo;
   vnp_Params["vnp_ReturnUrl"] = returnUrl;
   vnp_Params["vnp_TxnRef"] = orderId;
 
-  vnp_Params = sortObject(vnp_Params); // Giờ đã chạy đúng
+  // ======================================================================
+  // DEBUG LOG 1: In ra các tham số GỐC
+  console.log("--- VNPAY PARAMS (RAW) ---");
+  console.log(vnp_Params);
+  // ======================================================================
 
-  const signData = queryString.stringify(vnp_Params, { encode: false });
+  let sorted_Params_for_sign = sortObject(vnp_Params);
+  let signData = queryString.stringify(sorted_Params_for_sign, {
+    encode: false,
+  });
+
+  // ======================================================================
+  // DEBUG LOG 2: In ra chuỗi data để tạo chữ ký
+  console.log("--- VNPAY SIGN DATA ---");
+  console.log(signData);
+
   const hmac = crypto.createHmac("sha512", secretKey);
   const signed = hmac.update(Buffer.from(signData, "utf-8")).digest("hex");
-  vnp_Params["vnp_SecureHash"] = signed;
+
+  sorted_Params_for_sign["vnp_SecureHash"] = signed;
 
   const finalVnpUrl =
-    vnpUrl + "?" + queryString.stringify(vnp_Params, { encode: true });
+    vnpUrl +
+    "?" +
+    queryString.stringify(sorted_Params_for_sign, { encode: false });
+
+  console.log("--- VNPAY HASH ---");
+  console.log(signed);
+  console.log("--- VNPAY FINAL URL ---");
+  console.log(finalVnpUrl);
 
   res.json({ paymentUrl: finalVnpUrl });
 });
