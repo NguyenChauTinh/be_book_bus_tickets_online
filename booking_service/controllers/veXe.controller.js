@@ -185,6 +185,7 @@ export const createTicket = async (req, res) => {
               : "TIEN_MAT",
           trangThai: "THANH_CONG",
           noiDungThanhToan: `Thanh toan khi dat ve ${newTicket.maVe}`,
+          nhanVienTaoHoaDon: nhanVienTao
         });
         await newHoaDon.save({ session });
 

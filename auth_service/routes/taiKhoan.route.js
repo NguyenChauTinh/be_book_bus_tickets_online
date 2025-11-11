@@ -4,7 +4,8 @@ import {
     dangNhap,
     chinhSuaTaiKhoan,
     timTaiKhoan,
-    layDanhSachTaiKhoan
+    layDanhSachTaiKhoan,
+    layDanhSachTaiKhoanPhongVe
 } from '../controllers/taiKhoan.controller.js';
 
 
@@ -23,5 +24,7 @@ taiKhoanRouter.put('/:id', chinhSuaTaiKhoan);
 taiKhoanRouter.get('/danh-sach', layDanhSachTaiKhoan);
 
 taiKhoanRouter.get('/:id', timTaiKhoan);
+
+taiKhoanRouter.get('/danh-sach/phong-ve', layDanhSachTaiKhoanPhongVe);
 
 export default taiKhoanRouter;

@@ -6,6 +6,7 @@ import { JWT_SECRET, JWT_EXPIRES_IN } from "../config/env.js";
 import "../models/nhanVien.model.js";
 import "../models/vaiTro.model.js";
 import "../models/phanQuyen.model.js";
+import NhanVien from "../models/nhanVien.model.js";
 
 const signToken = (id, tenTaiKhoan, nhanVienId) => {
   return jwt.sign({ id, tenTaiKhoan, nhanVienId }, JWT_SECRET, {
@@ -217,6 +218,36 @@ export const layDanhSachTaiKhoan = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Lỗi server khi lấy danh sách tài khoản.",
+      error: error.message,
+    });
+  }
+};
+export const layDanhSachTaiKhoanPhongVe = async (req, res) => {
+  try {
+    // 1. Lấy ID của các nhân viên thuộc 'PHONGVE'
+    const phongVeNhanViens = await NhanVien.find(
+      { loaiNhanVien: "PHONGVE" },
+      "_id" 
+    );
+
+    // 2. Chuyển thành mảng các ID
+    const phongVeNhanVienIds = phongVeNhanViens.map(nv => nv._id);
+
+    const taiKhoans = await TaiKhoan.find({
+      nhanVien: { $in: phongVeNhanVienIds },
+      trangThai: true, 
+    })
+    .populate("nhanVien", "tenNhanVien") 
+    .select("tenTaiKhoan nhanVien donViCongTac");
+
+    res.status(200).json({
+      success: true,
+      data: taiKhoans,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi lấy danh sách tài khoản phòng vé.",
       error: error.message,
     });
   }
