@@ -377,7 +377,7 @@ export const updateMultipleTicketDetails = async (req, res) => {
 export const cancelMultipleTicketDetails = async (req, res) => {
   try {
     const { ticketId } = req.params;
-    const { chiTietIdsToCancel } = req.body;
+    const { chiTietIdsToCancel, reason } = req.body;
 
     if (
       !mongoose.Types.ObjectId.isValid(ticketId) ||
@@ -401,6 +401,8 @@ export const cancelMultipleTicketDetails = async (req, res) => {
       const chiTiet = ticket.chiTiet.id(detailId);
       if (chiTiet && chiTiet.trangThaiChiTiet !== "DA_HUY") {
         chiTiet.trangThaiChiTiet = "DA_HUY";
+        chiTiet.lyDoHuy = reason || "Không rõ lý do";
+        chiTiet.ngayHuy = new Date();
         cancelledCount++;
       }
     }

@@ -113,6 +113,21 @@ export const getTuyenDuong = async (req, res) => {
   try {
     const tuyen = await TuyenDuong.findById(req.params.id).populate({
       path: "chiTietTuyen",
+      populate: { path: "diaDiem", select: "maDiaDiem tenDiaDiem" },
+    });
+
+    if (!tuyen) return res.status(404).json({ error: "Không tìm thấy tuyến" });
+
+    res.json(tuyen);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
+export const getTuyenDuongData = async (req, res) => {
+  try {
+    const tuyen = await TuyenDuong.findById(req.params.id).populate({
+      path: "chiTietTuyen",
       // ✅ Sắp xếp các điểm dừng theo thứ tự
       options: { sort: { thuTu: 1 } },
       populate: {

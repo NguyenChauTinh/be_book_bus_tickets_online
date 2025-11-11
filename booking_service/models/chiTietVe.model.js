@@ -92,6 +92,14 @@ const ChiTietVeSchema = new mongoose.Schema(
       ref: "HoaDon",
       default: null,
     },
+    lyDoHuy: {
+      type: String,
+      default: null,
+    },
+    ngayHuy: {
+      type: Date,
+      default: null,
+    },
   },
   { _id: true }
 );
