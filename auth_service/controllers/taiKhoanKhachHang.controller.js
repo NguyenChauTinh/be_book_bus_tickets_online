@@ -113,10 +113,6 @@ export const verifyLoginOtp = async (req, res) => {
     if (!storedOtp) {
       return res.status(400).json({ message: "OTP đã hết hạn." });
     }
-<<<<<<< HEAD
-=======
-    // Sửa lại phép so sánh cho an toàn (mặc dù cả 2 đều là string)
->>>>>>> origin/tinh_0311
     if (storedOtp.toString() !== otp.toString()) {
       return res.status(400).json({ message: "Mã OTP không chính xác." });
     }
@@ -144,10 +140,6 @@ export const verifyLoginOtp = async (req, res) => {
 
     const sessionKey = `session:${account._id}`;
 
-<<<<<<< HEAD
-=======
-    // THAY ĐỔI CÚ PHÁP
->>>>>>> origin/tinh_0311
     await redisClient.set(sessionKey, "active", {
       EX: SESSION_EXPIRY_SECONDS,
     });
@@ -180,8 +172,6 @@ export const logout = async (req, res) => {
     res.status(500).json({ message: "Lỗi máy chủ", error: error.message });
   }
 };
-<<<<<<< HEAD
-=======
 
 export const requestOtp = async (req, res) => {
   try {
@@ -238,4 +228,3 @@ export const verifyOtp = async (req, res) => {
       .json({ message: "Lỗi máy chủ", error: error.message, success: false });
   }
 };
->>>>>>> origin/tinh_0311
