@@ -113,6 +113,10 @@ export const verifyLoginOtp = async (req, res) => {
     if (!storedOtp) {
       return res.status(400).json({ message: "OTP đã hết hạn." });
     }
+<<<<<<< HEAD
+=======
+    // Sửa lại phép so sánh cho an toàn (mặc dù cả 2 đều là string)
+>>>>>>> origin/tinh_0311
     if (storedOtp.toString() !== otp.toString()) {
       return res.status(400).json({ message: "Mã OTP không chính xác." });
     }
@@ -140,6 +144,10 @@ export const verifyLoginOtp = async (req, res) => {
 
     const sessionKey = `session:${account._id}`;
 
+<<<<<<< HEAD
+=======
+    // THAY ĐỔI CÚ PHÁP
+>>>>>>> origin/tinh_0311
     await redisClient.set(sessionKey, "active", {
       EX: SESSION_EXPIRY_SECONDS,
     });
@@ -172,3 +180,62 @@ export const logout = async (req, res) => {
     res.status(500).json({ message: "Lỗi máy chủ", error: error.message });
   }
 };
+<<<<<<< HEAD
+=======
+
+export const requestOtp = async (req, res) => {
+  try {
+    const { soDienThoai } = req.body;
+
+    const otp = generateOTP();
+    const redisKey = `otp:login:${soDienThoai}`;
+
+    await redisClient.set(redisKey, otp, {
+      EX: OTP_EXPIRY_SECONDS,
+    });
+
+    console.log(`[OTP Verification] Sent to ${soDienThoai}`);
+
+    res.status(200).json({
+      message: `OTP đã được gửi đến ${soDienThoai}`,
+      success: true,
+    });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Lỗi máy chủ", error: error.message, success: false });
+  }
+};
+
+export const verifyOtp = async (req, res) => {
+  try {
+    const { soDienThoai, otp } = req.body;
+
+    const redisKey = `otp:login:${soDienThoai}`;
+    const storedOtp = await redisClient.get(redisKey);
+
+    console.log(`[DEBUG] OTP từ App: ${otp} (Kiểu: ${typeof otp})`);
+    console.log(
+      `[DEBUG] OTP từ Redis: ${storedOtp} (Kiểu: ${typeof storedOtp})`
+    );
+
+    if (!storedOtp) {
+      return res.status(400).json({ message: "OTP đã hết hạn." });
+    }
+    if (storedOtp.toString() !== otp.toString()) {
+      return res.status(400).json({ message: "Mã OTP không chính xác." });
+    }
+
+    await redisClient.del(redisKey);
+
+    res.status(200).json({
+      message: "Xác thực số điện thoại thành công!",
+      success: true,
+    });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Lỗi máy chủ", error: error.message, success: false });
+  }
+};
+>>>>>>> origin/tinh_0311

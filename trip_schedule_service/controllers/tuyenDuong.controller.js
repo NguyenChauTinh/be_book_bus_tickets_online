@@ -124,6 +124,69 @@ export const getTuyenDuong = async (req, res) => {
   }
 };
 
+export const getTuyenDuongData = async (req, res) => {
+  try {
+    const tuyen = await TuyenDuong.findById(req.params.id).populate({
+      path: "chiTietTuyen",
+      // ✅ Sắp xếp các điểm dừng theo thứ tự
+      options: { sort: { thuTu: 1 } },
+      populate: {
+        path: "diaDiem",
+        // ✅ Cần lấy thêm 'diaChi' và 'tenDiaDiem' để trả về cho frontend
+        select: "tenDiaDiem diaChi",
+      },
+    });
+
+    if (!tuyen) {
+      // ✅ Sửa Lỗi 1: Gói response lỗi
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy tuyến" });
+    }
+
+    // ✅ Sửa Lỗi 2: Biến đổi dữ liệu
+    if (!tuyen.chiTietTuyen || tuyen.chiTietTuyen.length < 2) {
+      // Tuyến đường phải có ít nhất 2 điểm (đi và đến)
+      return res.status(400).json({
+        success: false,
+        message: "Tuyến đường không có đủ chi tiết điểm đi/đến",
+      });
+    }
+
+    // Lấy điểm đầu tiên làm điểm đón
+    const diemDonChiTiet = tuyen.chiTietTuyen[0];
+    // Lấy điểm cuối cùng làm điểm trả
+    const diemTraChiTiet = tuyen.chiTietTuyen[tuyen.chiTietTuyen.length - 1];
+
+    // Tạo object mới có cấu trúc (shape) mà frontend mong đợi
+    const formattedTuyen = {
+      _id: tuyen._id,
+      tenTuyen: tuyen.tenTuyen,
+      thoiGianDenDuKien: diemTraChiTiet.thoiGianDenDuKien || 0,
+
+      diemDon: {
+        // ⚠️ Giả định: 'diaDiem' trả về 'tenDiaDiem' và 'diaChi'
+        tenDiem: diemDonChiTiet.diaDiem?.tenDiaDiem || "Không rõ điểm đón",
+        diaChi: diemDonChiTiet.diaDiem?.diaChi || "Không rõ địa chỉ",
+      },
+      diemTra: {
+        tenDiem: diemTraChiTiet.diaDiem?.tenDiaDiem || "Không rõ điểm trả",
+        diaChi: diemTraChiTiet.diaDiem?.diaChi || "Không rõ địa chỉ",
+      },
+    };
+    res.status(200).json({
+      success: true,
+      message: "Lấy tuyến đường thành công",
+      data: formattedTuyen,
+    });
+  } catch (err) {
+    res.status(400).json({
+      success: false,
+      message: "Lỗi máy chủ: " + err.message,
+    });
+  }
+};
+
 export const deleteTuyenDuong = async (req, res) => {
   try {
     const { id } = req.params;
@@ -189,7 +252,7 @@ export const getDiaDiemKetNoi = async (req, res) => {
 
     const diaDiemMap = new Map();
     const validDonTypes = ["don", "trunggian"];
-    const validTraTypes = ["tra", "trunggian"]; 
+    const validTraTypes = ["tra", "trunggian"];
 
     if (!selectedId || selectedId === "undefined") {
       if (type === "don") {

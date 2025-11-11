@@ -378,7 +378,7 @@ export const updateMultipleTicketDetails = async (req, res) => {
 export const cancelMultipleTicketDetails = async (req, res) => {
   try {
     const { ticketId } = req.params;
-    const { chiTietIdsToCancel } = req.body;
+    const { chiTietIdsToCancel, reason } = req.body;
 
     if (
       !mongoose.Types.ObjectId.isValid(ticketId) ||
@@ -402,6 +402,8 @@ export const cancelMultipleTicketDetails = async (req, res) => {
       const chiTiet = ticket.chiTiet.id(detailId);
       if (chiTiet && chiTiet.trangThaiChiTiet !== "DA_HUY") {
         chiTiet.trangThaiChiTiet = "DA_HUY";
+        chiTiet.lyDoHuy = reason || "Không rõ lý do";
+        chiTiet.ngayHuy = new Date();
         cancelledCount++;
       }
     }
@@ -882,18 +884,18 @@ export const filterVeXeMaster = async (req, res) => {
     const elemMatchFilters = {};
 
     if (chuyenXeIds && chuyenXeIds.length > 0) {
-      elemMatchFilters.chuyenXe = { $in: chuyenXeIds }; 
+      elemMatchFilters.chuyenXe = { $in: chuyenXeIds };
     }
     if (sdt) {
-      elemMatchFilters.soDienThoai = new RegExp(sdt, "i"); 
+      elemMatchFilters.soDienThoai = new RegExp(sdt, "i");
     }
     if (ten) {
-      elemMatchFilters.tenKhachHang = new RegExp(ten, "i"); 
+      elemMatchFilters.tenKhachHang = new RegExp(ten, "i");
     }
     if (ghe) {
-      elemMatchFilters.maChoNgoi = new RegExp(ghe, "i"); 
+      elemMatchFilters.maChoNgoi = new RegExp(ghe, "i");
     }
-    
+
     // Chỉ tìm kiếm nếu có ít nhất 1 filter
     if (Object.keys(elemMatchFilters).length === 0) {
       return res.status(200).json({
@@ -902,13 +904,13 @@ export const filterVeXeMaster = async (req, res) => {
         pagination: { total: 0, page: pageNum, limit: limitNum },
       });
     }
-    
+
     matchStage.chiTiet = { $elemMatch: elemMatchFilters };
 
     // --- 2. Aggregation Pipeline ---
     const aggregationResult = await VeXe.aggregate([
       { $match: matchStage },
-      { $sort: { createdAt: -1 } }, 
+      { $sort: { createdAt: -1 } },
       {
         $facet: {
           // A. Dữ liệu (Đã phân trang và lookup Hóa đơn)
@@ -919,9 +921,9 @@ export const filterVeXeMaster = async (req, res) => {
             { $unwind: "$chiTiet" },
             {
               $lookup: {
-                from: "hoadons", 
-                localField: "chiTiet.hoaDon", 
-                foreignField: "_id", 
+                from: "hoadons",
+                localField: "chiTiet.hoaDon",
+                foreignField: "_id",
                 as: "hoaDonInfo",
               },
             },
@@ -933,16 +935,16 @@ export const filterVeXeMaster = async (req, res) => {
             {
               $group: {
                 _id: "$_id",
-                maVe: { $first: "$maVe" }, 
-                tongTien: { $first: "$tongTien" }, 
-                tongTienDaThanhToan: { $first: "$tongTienDaThanhToan" }, 
-                maGiamGia: { $first: "$maGiamGia" }, 
-                trangThaiThanhToan: { $first: "$trangThaiThanhToan" }, 
-                createdAt: { $first: "$createdAt" }, 
-                chiTiet: { $push: "$chiTiet" }, 
+                maVe: { $first: "$maVe" },
+                tongTien: { $first: "$tongTien" },
+                tongTienDaThanhToan: { $first: "$tongTienDaThanhToan" },
+                maGiamGia: { $first: "$maGiamGia" },
+                trangThaiThanhToan: { $first: "$trangThaiThanhToan" },
+                createdAt: { $first: "$createdAt" },
+                chiTiet: { $push: "$chiTiet" },
               },
             },
-            { $sort: { createdAt: -1 } } 
+            { $sort: { createdAt: -1 } },
           ],
           metadata: [{ $count: "total" }],
         },
@@ -960,6 +962,37 @@ export const filterVeXeMaster = async (req, res) => {
     });
   } catch (error) {
     console.error("Lỗi khi lọc vé xe master:", error);
+    res.status(500).json({ success: false, message: "Lỗi máy chủ." });
+  }
+};
+
+/**
+ * @desc [SỬA LỖI MICROSERVICE] Lấy tất cả vé xe của user.
+ * KHÔNG populate, vì ChuyenXe nằm ở service khác.
+ * @route GET /api/ve-xe/user/:userId
+ * @access User/Admin
+ * @params {String} userId - ID của user.
+ */
+export const getTicketsByUserId = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "ID người dùng không được để trống.",
+      });
+    }
+
+    // Chỉ dùng .find() đơn giản. Không được .populate()
+    const tickets = await VeXe.find({ userId: userId })
+      .sort({ createdAt: -1 })
+      .exec();
+
+    // API này sẽ chỉ trả về vé và ID của chuyến xe (chuyenXeId)
+    res.status(200).json({ success: true, data: tickets });
+  } catch (error) {
+    console.error("Lỗi khi lấy vé xe theo userId:", error);
     res.status(500).json({ success: false, message: "Lỗi máy chủ." });
   }
 };

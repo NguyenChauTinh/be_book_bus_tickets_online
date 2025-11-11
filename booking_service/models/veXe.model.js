@@ -36,8 +36,9 @@ const VeXeSchema = new mongoose.Schema(
     },
     userId: {
       type: String,
-      default: null
-    }
+      default: null,
+      index: true,
+    },
   },
   {
     timestamps: true,

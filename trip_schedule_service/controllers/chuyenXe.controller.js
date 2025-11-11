@@ -108,7 +108,9 @@ export const getDanhSachChuyenXeTheoNgay = async (req, res) => {
 
 export const getChuyenXeByID = async (req, res) => {
   try {
-    const trip = await ChuyenXe.findOne({ maChuyenXe: req.params.id });
+    const trip = await ChuyenXe.findOne({ maChuyenXe: req.params.id }).populate(
+      "loaiXe"
+    );
     if (!trip) {
       return res.status(404).json({ message: "Không tìm thấy chuyến xe." });
     }
@@ -116,6 +118,23 @@ export const getChuyenXeByID = async (req, res) => {
     res
       .status(200)
       .json({ success: true, message: "Lấy chuyến xe thành công", data: trip });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+export const getChuyenXeByObjId = async (req, res) => {
+  try {
+    const trip = await ChuyenXe.findById(req.params.id).populate("loaiXe");
+    if (!trip) {
+      return res.status(404).json({ message: "Không tìm thấy chuyến xe." });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Lấy chuyến xe thành công",
+      data: trip,
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -210,13 +229,11 @@ export const getDanhSachChuyenXeFilter = async (req, res) => {
       ngayKhoiHanh: 1,
       gioKhoiHanh: 1,
     });
-    res
-      .status(200)
-      .json({
-        success: true,
-        message: "Lấy chuyến xe thành công",
-        data: trips,
-      });
+    res.status(200).json({
+      success: true,
+      message: "Lấy chuyến xe thành công",
+      data: trips,
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -399,5 +416,43 @@ export const getDanhSachChuyenXeTheoNgayVaDiaDiem = async (req, res) => {
   } catch (err) {
     console.error("Lỗi khi lấy danh sách chuyến xe:", err);
     res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * @desc [SỬA LỖI TIMEOUT] Lấy chi tiết nhiều chuyến xe bằng mảng ID.
+ * Dùng .populate() đơn giản vì chúng ta đang ở đúng microservice.
+ * @route POST /api/chuyen-xe/get-by-ids
+ * @access Internal/User
+ * @body { ids: ["id1", "id2", ...] }
+ */
+export const getMultipleChuyenXeByIds = async (req, res) => {
+  try {
+    const { ids } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+
+    // Thêm log debug phía backend
+    console.log(`[Service ChuyenXe] Đang tìm ${ids.length} chuyến xe...`);
+
+    // SỬA LỖI: Dùng .find() và .populate()
+    // Code này sẽ giải quyết lỗi "N+1" mà không cần aggregate phức tạp
+    const chuyenXeList = await ChuyenXe.find({ _id: { $in: ids } })
+      .populate("xe") // "Join" với model Xe
+      .populate("loaiXe") // "Join" với model LoaiXe
+      .exec();
+
+    console.log(
+      `[Service ChuyenXe] Đã tìm thấy ${chuyenXeList.length} chuyến.`
+    );
+
+    // Luôn trả về một MẢNG
+    res.status(200).json({ success: true, data: chuyenXeList });
+  } catch (error) {
+    // Lỗi 500 sẽ xảy ra ở đây
+    console.error("Lỗi khi lấy nhiều chuyến xe (dùng .populate()):", error);
+    res.status(500).json({ success: false, message: "Lỗi máy chủ." });
   }
 };
