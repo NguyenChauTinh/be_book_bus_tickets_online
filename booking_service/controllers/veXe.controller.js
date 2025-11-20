@@ -3,6 +3,7 @@ import VeXe from "../models/veXe.model.js";
 import HoaDon from "../models/hoaDon.model.js";
 import mongoose from "mongoose";
 import moment from "moment";
+import Notification from "../models/notification.model.js";
 
 /**
  * @desc Tạo mã vé ngẫu nhiên, không trùng lặp, dài 8-10 ký tự.
@@ -208,6 +209,34 @@ export const createTicket = async (req, res) => {
     const savedTicket = await newTicket.save({ session });
     await session.commitTransaction();
 
+    try {
+      if (req.io) {
+        req.io.emit("new_booking", {
+          maVe: savedTicket.maVe,
+          khachHang: chiTiet[0].tenKhachHang, // Gửi một vài thông tin tóm tắt
+          soLuong: chiTiet.length,
+          tongTien: savedTicket.tongTien,
+        });
+      }
+    } catch (socketError) {
+      console.error("Lỗi khi bắn sự kiện socket:", socketError);
+    }
+
+    // Tạo thông báo cho người dùng nếu userId tồn tại
+    try {
+      if (userId) {
+        const newNotification = new Notification({
+          userId,
+          title: "Đặt vé thành công",
+          message: `Bạn đã đặt vé với mã ${savedTicket.maVe} thành công.`,
+          type: "trip",
+        });
+        await newNotification.save();
+      }
+    } catch (notificationError) {
+      console.error("Lỗi khi tạo thông báo:", notificationError);
+    }
+
     res.status(201).json({
       success: true,
       message: "Tạo vé xe thành công.",
@@ -411,6 +440,34 @@ export const cancelMultipleTicketDetails = async (req, res) => {
     if (cancelledCount > 0) {
       recalculateTongTien(ticket);
       await ticket.save();
+    }
+
+    try {
+      // 2a. Gửi thông báo real-time đến Admin (Socket.IO)
+      if (req.io) {
+        req.io.emit("ticket_cancelled", {
+          maVe: ticket.maVe,
+          lyDo: reason,
+          soLuongHuy: cancelledCount,
+        });
+      }
+
+      // 2b. Lưu thông báo vào DB cho Người dùng (trên App)
+      const userId = ticket.userId; // Lấy userId từ vé
+      if (userId && cancelledCount > 0) {
+        const newNotification = new Notification({
+          userId: userId,
+          title: "Hủy vé thành công",
+          message: `Vé ${ticket.maVe} đã được hủy. Lý do: ${
+            reason || "Không rõ lý do"
+          }`,
+          type: "trip",
+        });
+        await newNotification.save();
+      }
+    } catch (notifyError) {
+      console.error("Lỗi khi tạo thông báo hủy vé:", notifyError);
+      // Không làm gián đoạn response chính
     }
 
     res.status(200).json({
