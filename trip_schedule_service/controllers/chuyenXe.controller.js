@@ -125,6 +125,7 @@ export const getChuyenXeByID = async (req, res) => {
 
 export const getChuyenXeByObjId = async (req, res) => {
   try {
+    console.log("ID chuyen xe == ", req.params.id);
     const trip = await ChuyenXe.findById(req.params.id).populate("loaiXe");
     if (!trip) {
       return res.status(404).json({ message: "Không tìm thấy chuyến xe." });

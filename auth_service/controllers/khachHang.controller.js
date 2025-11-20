@@ -18,8 +18,7 @@ export const getMyProfile = async (req, res) => {
 
 export const updateMyProfile = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const { hoVaTen, email, ngaySinh, gioiTinh } = req.body;
+    const { userId, hoVaTen, email, ngaySinh, gioiTinh } = req.body;
 
     const taiKhoan = await TaiKhoan.findById(userId);
     if (!taiKhoan) {
@@ -38,7 +37,7 @@ export const updateMyProfile = async (req, res) => {
         .json({ message: 'Không tìm thấy thông tin khách hàng.' });
     }
 
-    res.status(200).json(updatedProfile);
+    res.status(200).json({message: "Thay đổi thành công", data : updatedProfile});
   } catch (error) {
     res.status(500).json({ message: 'Lỗi máy chủ', error: error.message });
   }
