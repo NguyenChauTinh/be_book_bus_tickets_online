@@ -11,6 +11,11 @@ import {
 import moment from "moment";
 import mongoose from "mongoose";
 import { VNPay } from "vnpay";
+// const axios = require("axios");
+// const crypto = require("crypto");
+import querystring from "qs";
+import axios from "axios";
+import crypto from "crypto";
 
 const vnpay = new VNPay({
   tmnCode: VNP_TMNCODE,
@@ -381,20 +386,23 @@ export const filterHoaDon = async (req, res) => {
       start.setHours(0, 0, 0, 0);
       const end = new Date(ngayKetThuc);
       end.setHours(23, 59, 59, 999);
-      matchStage.createdAt = { $gte: start, $lte: end }; 
+      matchStage.createdAt = { $gte: start, $lte: end };
     }
     if (trangThai) {
-      matchStage.trangThai = trangThai; 
+      matchStage.trangThai = trangThai;
     }
     if (donViThanhToan) {
-      matchStage.donViThanhToan = donViThanhToan; 
+      matchStage.donViThanhToan = donViThanhToan;
     }
 
     // --- 2. Giai đoạn $match phụ (sau khi $lookup VeXe) ---
     const postLookupMatchStage = {};
     if (sdt) {
       // Lọc sđt sau khi đã join VeXe
-      postLookupMatchStage["veXeInfo.chiTiet.soDienThoai"] = new RegExp(sdt, 'i'); 
+      postLookupMatchStage["veXeInfo.chiTiet.soDienThoai"] = new RegExp(
+        sdt,
+        "i"
+      );
     }
 
     // --- 3. Pipeline gộp ---
@@ -405,8 +413,8 @@ export const filterHoaDon = async (req, res) => {
       // Join với VeXe để lấy maVe và soDienThoai
       {
         $lookup: {
-          from: "vexes", 
-          localField: "veXe", 
+          from: "vexes",
+          localField: "veXe",
           foreignField: "_id",
           as: "veXeInfo",
         },
@@ -425,23 +433,23 @@ export const filterHoaDon = async (req, res) => {
             {
               $project: {
                 _id: 1,
-                maGiaoDichVNPAY: "$maGiaoDichVNPAY", 
-                maHoaDon: "$maHoaDon", 
-                maDonHang: "$veXeInfo.maVe", 
-                ngayKhoiTao: "$createdAt", 
-                phaiThu: "$soTien", 
-                ngayGhiNhan: "$updatedAt", 
-                trangThai: "$trangThai", 
-                phuongThuc: "$phuongThuc", 
+                maGiaoDichVNPAY: "$maGiaoDichVNPAY",
+                maHoaDon: "$maHoaDon",
+                maDonHang: "$veXeInfo.maVe",
+                ngayKhoiTao: "$createdAt",
+                phaiThu: "$soTien",
+                ngayGhiNhan: "$updatedAt",
+                trangThai: "$trangThai",
+                phuongThuc: "$phuongThuc",
                 soDienThoai: {
-                  $arrayElemAt: ["$veXeInfo.chiTiet.soDienThoai", 0], 
+                  $arrayElemAt: ["$veXeInfo.chiTiet.soDienThoai", 0],
                 },
               },
             },
             { $skip: skip },
             { $limit: limitNum },
           ],
-          
+
           // B. Metadata (Tổng số)
           metadata: [{ $count: "total" }],
 
@@ -452,16 +460,20 @@ export const filterHoaDon = async (req, res) => {
                 _id: null,
                 tongGiaoDich: { $sum: 1 },
                 thanhCong: {
-                  $sum: { $cond: [{ $eq: ["$trangThai", "THANH_CONG"] }, 1, 0] }, 
+                  $sum: {
+                    $cond: [{ $eq: ["$trangThai", "THANH_CONG"] }, 1, 0],
+                  },
                 },
                 choThanhToan: {
-                  $sum: { $cond: [{ $eq: ["$trangThai", "CHO_THANH_TOAN"] }, 1, 0] }, 
+                  $sum: {
+                    $cond: [{ $eq: ["$trangThai", "CHO_THANH_TOAN"] }, 1, 0],
+                  },
                 },
                 tongTienCho: {
                   $sum: {
                     $cond: [
                       { $eq: ["$trangThai", "CHO_THANH_TOAN"] },
-                      "$soTien", 
+                      "$soTien",
                       0,
                     ],
                   },
@@ -495,3 +507,172 @@ export const filterHoaDon = async (req, res) => {
     res.status(500).json({ success: false, message: "Lỗi máy chủ." });
   }
 };
+
+const config = {
+  partnerCode: "MOMO",
+  accessKey: "F8BBA842ECF85",
+  secretKey: "K951B6PE1waDMi640xX08PD3vg6EkVlz",
+  endpoint: "https://test-payment.momo.vn/v2/gateway/api/create",
+  // URL này sẽ được gọi khi thanh toán xong để App nhận biết
+  redirectUrl: "http://192.168.1.21:3005/momo-return",
+  // URL này MoMo gọi ngầm (Server-to-Server) để báo kết quả (Cần IP Public hoặc Ngrok)
+  ipnUrl: "https://webhook.site/your-webhook-url",
+};
+
+export const createMoMoPayment = async (req, res) => {
+  const { amount, orderInfo } = req.body;
+
+  // Tạo mã đơn hàng ngẫu nhiên để không bị trùng trên hệ thống Test
+  const orderId = config.partnerCode + new Date().getTime();
+  const requestId = orderId;
+  const requestType = "captureWallet";
+  const extraData = ""; // Có thể để trống
+
+  // --- TẠO CHỮ KÝ (SIGNATURE) ---
+  // MoMo yêu cầu sắp xếp các trường theo thứ tự bảng chữ cái chính xác
+  const rawSignature =
+    `accessKey=${config.accessKey}` +
+    `&amount=${amount}` +
+    `&extraData=${extraData}` +
+    `&ipnUrl=${config.ipnUrl}` +
+    `&orderId=${orderId}` +
+    `&orderInfo=${orderInfo}` +
+    `&partnerCode=${config.partnerCode}` +
+    `&redirectUrl=${config.redirectUrl}` +
+    `&requestId=${requestId}` +
+    `&requestType=${requestType}`;
+
+  // Hash HMAC-SHA256
+  const signature = crypto
+    .createHmac("sha256", config.secretKey)
+    .update(rawSignature)
+    .digest("hex");
+
+  // Tạo Body request
+  const requestBody = {
+    partnerCode: config.partnerCode,
+    partnerName: "Test MoMo",
+    storeId: "MomoTestStore",
+    requestId: requestId,
+    amount: amount,
+    orderId: orderId,
+    orderInfo: orderInfo,
+    redirectUrl: config.redirectUrl,
+    ipnUrl: config.ipnUrl,
+    lang: "vi",
+    requestType: requestType,
+    autoCapture: true,
+    extraData: extraData,
+    signature: signature,
+  };
+
+  try {
+    const response = await axios.post(config.endpoint, requestBody);
+
+    console.log("MoMo Response:", response.data);
+
+    if (response.data.resultCode === 0) {
+      return res.status(200).json({
+        paymentUrl: response.data.payUrl, // URL để mở WebView hoặc Browser
+        deeplink: response.data.deeplink, // Link mở app MoMo trực tiếp (nếu cần)
+        orderId: orderId,
+      });
+    } else {
+      return res.status(400).json({ message: response.data.message });
+    }
+  } catch (error) {
+    console.error("MoMo Error:", error);
+    return res.status(500).json({ message: "Lỗi kết nối MoMo" });
+  }
+};
+
+export const createVnPayUrl = (req, res) => {
+  process.env.TZ = "Asia/Ho_Chi_Minh";
+  const date = new Date();
+  const createDate = moment(date).format("YYYYMMDDHHmmss");
+
+  // 1. Lấy IP
+  let ipAddr =
+    req.headers["x-forwarded-for"] ||
+    req.connection.remoteAddress ||
+    req.socket.remoteAddress ||
+    req.connection.socket.remoteAddress;
+
+  if (ipAddr && ipAddr.includes("::ffff:")) {
+    ipAddr = ipAddr.split("::ffff:")[1];
+  }
+  if (!ipAddr) ipAddr = "127.0.0.1";
+
+  // 2. Cấu hình
+  const tmnCode = "24JHT453";
+  const secretKey = "OGKDEJVAJHSZJLGVUIQYVMRYDJMICHIA";
+  const vnpUrl = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
+  const returnUrl = "http://192.168.1.21:3005/payment-return";
+
+  const { amount, orderInfo } = req.body;
+
+  // 3. Tạo tham số
+  let vnp_Params = {};
+  vnp_Params["vnp_Version"] = "2.1.0";
+  vnp_Params["vnp_Command"] = "pay";
+  vnp_Params["vnp_TmnCode"] = tmnCode;
+  vnp_Params["vnp_Locale"] = "vn";
+  vnp_Params["vnp_CurrCode"] = "VND";
+  vnp_Params["vnp_TxnRef"] = moment(date).format("DDHHmmss");
+  vnp_Params["vnp_OrderInfo"] = orderInfo || "Thanh toan ve xe";
+  vnp_Params["vnp_OrderType"] = "other";
+  vnp_Params["vnp_Amount"] = amount * 100;
+  vnp_Params["vnp_ReturnUrl"] = returnUrl;
+  vnp_Params["vnp_IpAddr"] = ipAddr;
+  vnp_Params["vnp_CreateDate"] = createDate;
+
+  // 4. Sắp xếp tham số & Tạo chuỗi ký (Manual Build)
+  // Bước này đảm bảo thứ tự a-z và encoding chuẩn từng byte
+  vnp_Params = sortObject(vnp_Params);
+
+  let signData = "";
+  let i = 0;
+  for (let key in vnp_Params) {
+    if (i === 1) {
+      signData += "&" + key + "=" + vnp_Params[key];
+    } else {
+      signData += key + "=" + vnp_Params[key];
+      i = 1;
+    }
+  }
+
+  // --- DEBUG LOG (Xem kỹ dòng này trong Terminal khi chạy) ---
+  console.log("--------------- DEBUG VNPAY ---------------");
+  console.log("1. SignData:", signData);
+  // --------------------------------------------------------
+
+  // 5. Ký (HMAC SHA512)
+  const hmac = crypto.createHmac("sha512", secretKey);
+  const signed = hmac.update(Buffer.from(signData, "utf-8")).digest("hex");
+
+  // 6. Tạo URL
+  vnp_Params["vnp_SecureHash"] = signed;
+  let finalUrl = vnpUrl + "?" + signData + "&vnp_SecureHash=" + signed;
+
+  return res.status(200).json({
+    status: "success",
+    paymentUrl: finalUrl,
+  });
+};
+
+function sortObject(obj) {
+  let sorted = {};
+  let str = [];
+  let key;
+  for (key in obj) {
+    if (obj.hasOwnProperty(key)) {
+      str.push(encodeURIComponent(key));
+    }
+  }
+  str.sort();
+  for (key = 0; key < str.length; key++) {
+    // Thay thế khoảng trắng bằng dấu +
+    sorted[str[key]] = encodeURIComponent(obj[str[key]]).replace(/%20/g, "+");
+  }
+  return sorted;
+}
