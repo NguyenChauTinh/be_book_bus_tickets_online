@@ -11,6 +11,7 @@ import vaiTroRouter from "./routes/vaiTro.route.js";
 import phanQuyenRouter from "./routes/phanQuyen.route.js";
 import taiKhoanKHRouter from "./routes/taiKhoanKhachHang.route.js";
 import khachHangRouter from "./routes/khachHang.route.js";
+import { connectRabbitMQ } from "./utils/rabbitmq.helper.js";
 
 const app = express();
 
@@ -43,6 +44,7 @@ app.listen(PORT, async () => {
   console.log(`Server is running on port http://localhost:${PORT}`);
   console.log(new Date());
   await connectToDatabase();
+  await connectRabbitMQ();
 });
 
 export default app;

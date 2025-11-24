@@ -8,6 +8,7 @@
     "dev": "nodemon app"
   },
   "dependencies": {
+    "amqplib": "^0.10.9",
     "axios": "^1.8.4",
     "bcryptjs": "^3.0.2",
     "cookie-parser": "~1.4.4",

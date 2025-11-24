@@ -11,6 +11,7 @@ import loaiXeRouter from "./routes/loaiXe.route.js";
 import xeRouter from "./routes/xe.route.js";
 import chuyenXeRouter from "./routes/chuyenXe.route.js";
 import giaVeRouter from "./routes/giaVe.routes.js";
+import DonViCongTacRouter from "./routes/donViCongTac.route.js";
 
 const app = express();
 
@@ -35,7 +36,7 @@ app.use("/api/v1/chuyen-xe", chuyenXeRouter);
 app.use("/api/v1/loai-xe", loaiXeRouter);
 app.use("/api/v1/xe", xeRouter);
 app.use("/api/v1/gia-ve", giaVeRouter);
-
+app.use('/api/v1/don-vi-cong-tac', DonViCongTacRouter);
 app.use(errorMiddleware);
 
 async function startServer() {

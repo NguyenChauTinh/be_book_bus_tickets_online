@@ -4,6 +4,7 @@ import redisClient from "../config/redis.js";
 import { generateOTP } from "../utils/otp.util.js";
 import { OTP_EXPIRY_SECONDS, SESSION_EXPIRY_SECONDS } from "../config/env.js";
 import jwt from "jsonwebtoken";
+import { publishEvent } from "../utils/rabbitmq.helper.js";
 
 export const requestRegisterOtp = async (req, res) => {
   try {
@@ -58,9 +59,15 @@ export const completeRegistration = async (req, res) => {
 
     newKhachHang.taiKhoan = newTaiKhoan._id;
     await newKhachHang.save();
-
+    const registrationPayload = {
+      userId: newTaiKhoan._id.toString(),
+      userName: hoVaTen,
+      soDienThoai: soDienThoai,
+      // Thêm các thông tin khác cần thiết cho báo cáo (nếu có)
+    };
+    publishEvent('USER_REGISTERED', registrationPayload, email, soDienThoai);
     await redisClient.del(redisKey);
-
+  
     res.status(201).json({
       message: "Đăng ký tài khoản thành công!",
       taiKhoan: newTaiKhoan,
