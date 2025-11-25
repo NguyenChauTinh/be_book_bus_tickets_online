@@ -1,9 +1,9 @@
-import { console } from "inspector";
 import VeXe from "../models/veXe.model.js";
 import HoaDon from "../models/hoaDon.model.js";
 import mongoose from "mongoose";
 import moment from "moment";
 import Notification from "../models/notification.model.js";
+import { publishEvent } from "../utils/rabbitmq.helper.js";
 
 /**
  * @desc Tạo mã vé ngẫu nhiên, không trùng lặp, dài 8-10 ký tự.
@@ -136,7 +136,9 @@ export const createTicket = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
-    const { chiTiet, maGiamGia, nhanVienTao, userId } = req.body;
+    const { chiTiet, maGiamGia, nhanVienTao, userId, email, route, departureDate, selectedPickup} = req.body;
+    console.log("Gửi rabbit tạo vé xe mới với body:", req.body);
+  
 
     if (!chiTiet || chiTiet.length === 0) {
       return res.status(400).json({
@@ -186,7 +188,7 @@ export const createTicket = async (req, res) => {
               : "TIEN_MAT",
           trangThai: "THANH_CONG",
           noiDungThanhToan: `Thanh toan khi dat ve ${newTicket.maVe}`,
-          nhanVienTaoHoaDon: nhanVienTao
+          nhanVienTaoHoaDon: nhanVienTao,
         });
         await newHoaDon.save({ session });
 
@@ -209,6 +211,37 @@ export const createTicket = async (req, res) => {
     const savedTicket = await newTicket.save({ session });
     await session.commitTransaction();
 
+    try {
+      const firstDetail = savedTicket.chiTiet[0];
+      const eventPayload = {
+        userId: savedTicket.userId,
+        bookingId: savedTicket.maVe,
+        userName: firstDetail.tenKhachHang,
+        totalPrice: savedTicket.tongTien,
+        seats: savedTicket.chiTiet.map((ct) => ct.maChoNgoi),
+        tripDetails: {
+          id: firstDetail.chuyenXe,
+          route: route ||"Cần tìm kiếm thông tin tuyến đường",
+          departureTime:  departureDate || new Date(), 
+        selectedPickup: selectedPickup || "Chưa có điểm đón cụ thể",
+        },
+        smsBody: `Ve ${
+          savedTicket.maVe
+        } da dat thanh cong. Tong tien: ${savedTicket.tongTien.toLocaleString(
+          "vi-VN"
+        )} VND.`,
+      };
+        console.log("Gửi rabbit tạo vé xe mới với chi tiết:", firstDetail);
+      publishEvent(
+        "TICKET_BOOKED_SUCCESSFULLY",
+        eventPayload,
+        email || null, 
+        firstDetail.soDienThoai || null
+      );
+    } catch (rabbitmqError) {
+      console.error("Lỗi khi bắn sự kiện RabbitMQ:", rabbitmqError);
+      // KHÔNG làm gián đoạn response chính
+    }
     try {
       if (req.io) {
         req.io.emit("new_booking", {

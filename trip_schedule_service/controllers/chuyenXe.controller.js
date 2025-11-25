@@ -300,6 +300,7 @@ export const getDanhSachChuyenXeTheoNgayVaDiaDiem = async (req, res) => {
       } catch (error) {
         // Lỗi này không nghiêm trọng, có thể bỏ qua
       }
+      console.log("Tuyến đường dữ liệu:", tuyenDuongData);
       return { ...trip, soVeDaDat, tuyenDuong: tuyenDuongData };
     });
 
@@ -408,7 +409,7 @@ export const getDanhSachChuyenXeTheoNgayVaDiaDiem = async (req, res) => {
         seatsLeft,
       };
     });
-
+    console.log("Kết quả cuối cùng:", formattedBusTrips);
     res.status(200).json({
       success: true,
       message: "Lấy danh sách chuyến xe thành công.",
@@ -455,5 +456,42 @@ export const getMultipleChuyenXeByIds = async (req, res) => {
     // Lỗi 500 sẽ xảy ra ở đây
     console.error("Lỗi khi lấy nhiều chuyến xe (dùng .populate()):", error);
     res.status(500).json({ success: false, message: "Lỗi máy chủ." });
+  }
+};
+export const getChuyenXeTheoKhoangNgay = async (req, res) => {
+  try {
+    const { tuNgay, denNgay } = req.query;
+
+    if (!tuNgay || !denNgay) {
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng cung cấp đầy đủ 'tuNgay' và 'denNgay'.",
+      });
+    }
+
+    const startDate = new Date(tuNgay);
+    startDate.setHours(0, 0, 0, 0); 
+
+    const endDate = new Date(denNgay);
+    endDate.setHours(23, 59, 59, 999); 
+
+    const trips = await ChuyenXe.find({
+      ngayKhoiHanh: {
+        $gte: startDate,
+        $lte: endDate,
+      },
+    })
+      .populate("loaiXe") 
+      .populate("xe") 
+      .sort({ ngayKhoiHanh: 1, gioKhoiHanh: 1 }); 
+
+    res.status(200).json({
+      success: true,
+      message: `Tìm thấy ${trips.length} chuyến xe từ ${tuNgay} đến ${denNgay}`,
+      data: trips,
+    });
+  } catch (err) {
+    console.error("Lỗi tìm kiếm theo khoảng ngày:", err);
+    res.status(500).json({ success: false, message: err.message });
   }
 };

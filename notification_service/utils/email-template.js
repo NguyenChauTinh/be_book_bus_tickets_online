@@ -6,7 +6,7 @@ const LINK_TO_APP_HOMEPAGE = 'https://smartbus.example.com';
 export function getBookingSuccessTemplate(data) {
     const { bookingId, tripDetails, seats, totalPrice, userName, departureDate } = data;
     const formattedPrice = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(totalPrice);
-    
+    console.log("Dữ liệu trong template đặt vé:", data);
     return `
     <!DOCTYPE html>
     <html lang="vi">
@@ -50,7 +50,8 @@ export function getBookingSuccessTemplate(data) {
                         </div>
                         <div class="details-row">
                             <span>Thời gian khởi hành:</span>
-                            <span>${departureDate || 'N/A'} (Tại ${tripDetails.departureTime || 'N/A'})</span>
+                            <span>${departureDate || 'N/A'} (Tại ${tripDetails.selectedPickup.name || 'N/A'})</span>
+                            
                         </div>
                         <div class="details-row">
                             <span>Số ghế:</span>
@@ -69,7 +70,7 @@ export function getBookingSuccessTemplate(data) {
                     </div>
                 </div>
                 <div class="footer">
-                    &copy; 2024 Hệ thống Đặt vé xe Microservice.
+                    &copy; 2024 Hệ thống Đặt vé xe SmartBus.
                 </div>
             </div>
         </div>
@@ -114,6 +115,75 @@ export function getRegistrationSuccessTemplate(data) {
                     </div>
 
                     <p style="margin-top: 30px; font-style: italic;">Nếu bạn không phải là người đăng ký tài khoản này, vui lòng bỏ qua email này hoặc liên hệ với bộ phận hỗ trợ của chúng tôi.</p>
+                </div>
+                <div class="footer">
+                    &copy; 2024 Hệ thống Đặt vé xe SmartBus.
+                </div>
+            </div>
+        </div>
+    </body>
+    </html>
+    `;
+}
+export function getPaymentSuccessTemplate(data) {
+    const { bookingId, amount, transactionId, paymentTime, customerName, paymentMethod } = data;
+    const formattedPrice = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+    const formattedDate = paymentTime ? new Date(paymentTime).toLocaleString('vi-VN') : new Date().toLocaleString('vi-VN');
+
+    return `
+    <!DOCTYPE html>
+    <html lang="vi">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Thanh toán thành công</title>
+        <style>
+            body { font-family: Arial, sans-serif; background-color: #f4f7fa; margin: 0; padding: 0; }
+            .container { width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+            .header { background-color: #28a745; color: #ffffff; padding: 20px; text-align: center; }
+            .header h1 { margin: 0; font-size: 24px; }
+            .content { padding: 30px; color: #333333; }
+            .details-box { border: 1px solid #eeeeee; border-radius: 6px; padding: 15px; margin-top: 20px; background-color: #f9fff9; }
+            .details-row { padding: 8px 0; border-bottom: 1px dashed #cccccc; display: flex; justify-content: space-between; }
+            .details-row:last-child { border-bottom: none; }
+            .highlight { color: #28a745; font-weight: bold; }
+            .footer { text-align: center; padding: 20px; font-size: 12px; color: #888888; }
+        </style>
+    </head>
+    <body>
+        <div style="padding: 20px;">
+            <div class="container">
+                <div class="header">
+                    <h1>🎉 Thanh toán Thành công!</h1>
+                </div>
+                <div class="content">
+                    <p>Xin chào <b>${customerName || 'Quý khách'}</b>,</p>
+                    <p>Hệ thống xác nhận bạn đã thanh toán thành công cho vé xe <b>${bookingId}</b>.</p>
+
+                    <div class="details-box">
+                        <div class="details-row">
+                            <span>Mã giao dịch:</span>
+                            <span style="font-weight:bold;">${transactionId}</span>
+                        </div>
+                        <div class="details-row">
+                            <span>Mã vé:</span>
+                            <span style="font-weight:bold;">${bookingId}</span>
+                        </div>
+                        <div class="details-row">
+                            <span>Số tiền:</span>
+                            <span class="highlight">${formattedPrice}</span>
+                        </div>
+                        <div class="details-row">
+                            <span>Thời gian:</span>
+                            <span>${formattedDate}</span>
+                        </div>
+                        <div class="details-row">
+                            <span>Phương thức:</span>
+                            <span>${paymentMethod}</span>
+                        </div>
+                    </div>
+                    
+                    <p style="margin-top: 25px;">Cảm ơn bạn đã sử dụng dịch vụ!</p>
                 </div>
                 <div class="footer">
                     &copy; 2024 Hệ thống Đặt vé xe Microservice.

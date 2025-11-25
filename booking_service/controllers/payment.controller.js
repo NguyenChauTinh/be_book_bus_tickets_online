@@ -11,6 +11,7 @@ import {
 import moment from "moment";
 import mongoose from "mongoose";
 import { VNPay } from "vnpay";
+import { publishEvent } from "../utils/rabbitmq.helper.js";
 
 const vnpay = new VNPay({
   tmnCode: VNP_TMNCODE,
@@ -108,8 +109,6 @@ export const createPaymentUrl = async (req, res) => {
 };
 
 export const vnpay_ipn = async (req, res) => {
-  console.log("vnpay_ipn ..............");
-
   try {
     const query = req.query;
 
@@ -175,7 +174,6 @@ export const vnpay_ipn = async (req, res) => {
 };
 
 export const vnpay_return = async (req, res) => {
-  console.log("vnpay_return ..............");
   try {
     const query = req.query;
     const verify = vnpay.verifyReturnUrl(query);
@@ -236,6 +234,28 @@ export const vnpay_return = async (req, res) => {
       }
 
       if (rspCode === "00") {
+        const firstDetail =
+          veXe && veXe.chiTiet.length > 0 ? veXe.chiTiet[0] : null;
+        try {
+          const eventPayload = {
+            bookingId: veXe ? veXe.maVe : "Unknown",
+            amount: hoaDon.soTien,
+            transactionId: hoaDon.maGiaoDichVNPAY,
+            paymentTime: hoaDon.thoiGianThanhToan,
+            paymentMethod: "VNPAY",
+            customerName: firstDetail ? firstDetail.tenKhachHang : "Khách hàng",
+            userId: veXe ? veXe.userId : null,
+          };
+
+          const phone = firstDetail ? firstDetail.soDienThoai : null;
+          const email = veXe.email || null;
+
+          // Gọi hàm publishEvent (đã import sẵn ở dòng 13 file gốc)
+          publishEvent("PAYMENT_SUCCESSFUL", eventPayload, email, phone);
+        } catch (rabbitmqError) {
+          console.error("Lỗi khi bắn sự kiện thanh toán:", rabbitmqError);
+          // Không chặn luồng chính
+        }
         res.redirect(`${FRONTEND_URL}?success=true&orderId=${orderId}`);
       } else {
         res.redirect(`${FRONTEND_URL}?success=false&orderId=${orderId}`);
@@ -253,7 +273,7 @@ export const createBookingAndPaymentUrl = async (req, res) => {
   session.startTransaction();
 
   try {
-    const { chiTiet, nhanVienTao, amount, nhanVienId } = req.body;
+    const { chiTiet, nhanVienTao, amount, nhanVienId, userId, maGiamGia } = req.body;
     let ipAddr =
       req.headers["x-forwarded-for"] ||
       req.connection.remoteAddress ||
@@ -270,9 +290,12 @@ export const createBookingAndPaymentUrl = async (req, res) => {
 
     const newTicket = new VeXe({
       maVe: generateMaVe(),
+      userId: userId || null,
+      maGiamGia: maGiamGia || null,
       chiTiet: chiTiet.map((detail) => ({
         ...detail,
         nhanVienTao: nhanVienTao || null,
+        maGiamGia: maGiamGia || null,
         trangThaiChiTiet: "DAT_CHO",
         hinhThucThanhToan: "VNPAY",
         hoaDon: null,
@@ -333,29 +356,51 @@ export const createBookingAndPaymentUrl = async (req, res) => {
 export const checkPaymentStatus = async (req, res) => {
   try {
     const { maHoaDon } = req.query;
-    if (!maHoaDon) {
-      return res.status(400).json({ message: "Thiếu mã hóa đơn" });
+    
+    if (!maHoaDon) {  
+      return res.status(400).json({ 
+        success: false, 
+        message: "Thiếu mã hóa đơn" 
+      });
     }
 
-    const hoaDon = await HoaDon.findOne({ maHoaDon: maHoaDon }).select(
-      "trangThai maGiaoDichVNPAY"
-    );
+    const hoaDon = await HoaDon.findOne({ maHoaDon: maHoaDon }).populate("veXe");
+
     if (!hoaDon) {
-      return res
-        .status(404)
-        .json({ message: "Không tìm thấy hóa đơn", code: 400 });
+      return res.status(404).json({ 
+        success: false, 
+        message: "Không tìm thấy hóa đơn", 
+        code: 404 
+      });
+    }
+
+    const ticketData = hoaDon.veXe;
+
+    if (!ticketData) {
+         return res.status(404).json({ 
+             success: false, 
+             message: "Hóa đơn tồn tại nhưng không tìm thấy vé xe liên kết.", 
+             code: 404 
+         });
     }
 
     res.status(200).json({
+      success: true,
+      code: 200,
+      message: "Kiểm tra trạng thái thành công",
       trangThai: hoaDon.trangThai,
       maGiaoDichVNPAY: hoaDon.maGiaoDichVNPAY,
-      message: "Thanh toán vé xe thành công",
-      code: 200,
+      data: ticketData, 
     });
+
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Lỗi server", error: error.message, code: 500 });
+    console.error("Check status error:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Lỗi server", 
+      error: error.message, 
+      code: 500 
+    });
   }
 };
 export const filterHoaDon = async (req, res) => {
@@ -381,20 +426,23 @@ export const filterHoaDon = async (req, res) => {
       start.setHours(0, 0, 0, 0);
       const end = new Date(ngayKetThuc);
       end.setHours(23, 59, 59, 999);
-      matchStage.createdAt = { $gte: start, $lte: end }; 
+      matchStage.createdAt = { $gte: start, $lte: end };
     }
     if (trangThai) {
-      matchStage.trangThai = trangThai; 
+      matchStage.trangThai = trangThai;
     }
     if (donViThanhToan) {
-      matchStage.donViThanhToan = donViThanhToan; 
+      matchStage.donViThanhToan = donViThanhToan;
     }
 
     // --- 2. Giai đoạn $match phụ (sau khi $lookup VeXe) ---
     const postLookupMatchStage = {};
     if (sdt) {
       // Lọc sđt sau khi đã join VeXe
-      postLookupMatchStage["veXeInfo.chiTiet.soDienThoai"] = new RegExp(sdt, 'i'); 
+      postLookupMatchStage["veXeInfo.chiTiet.soDienThoai"] = new RegExp(
+        sdt,
+        "i"
+      );
     }
 
     // --- 3. Pipeline gộp ---
@@ -405,8 +453,8 @@ export const filterHoaDon = async (req, res) => {
       // Join với VeXe để lấy maVe và soDienThoai
       {
         $lookup: {
-          from: "vexes", 
-          localField: "veXe", 
+          from: "vexes",
+          localField: "veXe",
           foreignField: "_id",
           as: "veXeInfo",
         },
@@ -425,23 +473,23 @@ export const filterHoaDon = async (req, res) => {
             {
               $project: {
                 _id: 1,
-                maGiaoDichVNPAY: "$maGiaoDichVNPAY", 
-                maHoaDon: "$maHoaDon", 
-                maDonHang: "$veXeInfo.maVe", 
-                ngayKhoiTao: "$createdAt", 
-                phaiThu: "$soTien", 
-                ngayGhiNhan: "$updatedAt", 
-                trangThai: "$trangThai", 
-                phuongThuc: "$phuongThuc", 
+                maGiaoDichVNPAY: "$maGiaoDichVNPAY",
+                maHoaDon: "$maHoaDon",
+                maDonHang: "$veXeInfo.maVe",
+                ngayKhoiTao: "$createdAt",
+                phaiThu: "$soTien",
+                ngayGhiNhan: "$updatedAt",
+                trangThai: "$trangThai",
+                phuongThuc: "$phuongThuc",
                 soDienThoai: {
-                  $arrayElemAt: ["$veXeInfo.chiTiet.soDienThoai", 0], 
+                  $arrayElemAt: ["$veXeInfo.chiTiet.soDienThoai", 0],
                 },
               },
             },
             { $skip: skip },
             { $limit: limitNum },
           ],
-          
+
           // B. Metadata (Tổng số)
           metadata: [{ $count: "total" }],
 
@@ -452,16 +500,20 @@ export const filterHoaDon = async (req, res) => {
                 _id: null,
                 tongGiaoDich: { $sum: 1 },
                 thanhCong: {
-                  $sum: { $cond: [{ $eq: ["$trangThai", "THANH_CONG"] }, 1, 0] }, 
+                  $sum: {
+                    $cond: [{ $eq: ["$trangThai", "THANH_CONG"] }, 1, 0],
+                  },
                 },
                 choThanhToan: {
-                  $sum: { $cond: [{ $eq: ["$trangThai", "CHO_THANH_TOAN"] }, 1, 0] }, 
+                  $sum: {
+                    $cond: [{ $eq: ["$trangThai", "CHO_THANH_TOAN"] }, 1, 0],
+                  },
                 },
                 tongTienCho: {
                   $sum: {
                     $cond: [
                       { $eq: ["$trangThai", "CHO_THANH_TOAN"] },
-                      "$soTien", 
+                      "$soTien",
                       0,
                     ],
                   },

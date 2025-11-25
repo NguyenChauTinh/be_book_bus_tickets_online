@@ -1,8 +1,87 @@
 import GiaVe from "../models/giaVe.model.js";
 import mongoose from "mongoose";
+import TuyenDuong from "../models/tuyenDuong.model.js"; 
+import LoaiXe from "../models/loaiXe.model.js";
+
+// --- HÀM HELPER: KIỂM TRA TRÙNG LẶP ---
+const checkDuplicateTicketPrice = async (start, end, details, excludeId = null) => {
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+
+  // 1. Tìm các bảng giá có khoảng thời gian chồng lấn
+  // Logic trùng: (Start_A <= End_B) và (End_A >= Start_B)
+  const query = {
+    active: true,
+    thoiGianBatDau: { $lte: endDate },
+    thoiGianKetThuc: { $gte: startDate },
+  };
+
+  // Nếu là update, loại trừ chính bản thân nó ra
+  if (excludeId) {
+    query._id = { $ne: excludeId };
+  }
+
+  // Lấy các bảng giá trùng ngày và populate để lấy tên Tuyến/Xe cho thông báo lỗi
+  const conflictingPrices = await GiaVe.find(query).populate({
+    path: "chiTietGiaVe.tuyenDuong chiTietGiaVe.loaiXe",
+    select: "tenTuyen tenLoaiXe", // Chỉ lấy tên để hiển thị
+  });
+
+  // 2. Kiểm tra sâu vào chi tiết (Tuyến + Xe)
+  for (const existingPrice of conflictingPrices) {
+    // Duyệt qua từng chi tiết mới gửi lên
+    for (const newDetail of details) {
+      // Tìm xem chi tiết này có tồn tại trong bảng giá cũ không
+      const match = existingPrice.chiTietGiaVe.find((existingDetail) => {
+        // Lưu ý: existingDetail.tuyenDuong có thể là Object (do populate) hoặc ID string
+        const existingTuyenId = existingDetail.tuyenDuong._id
+          ? existingDetail.tuyenDuong._id.toString()
+          : existingDetail.tuyenDuong.toString();
+        const existingXeId = existingDetail.loaiXe._id
+          ? existingDetail.loaiXe._id.toString()
+          : existingDetail.loaiXe.toString();
+
+        return (
+          existingTuyenId === newDetail.tuyenDuong.toString() &&
+          existingXeId === newDetail.loaiXe.toString()
+        );
+      });
+
+      // Nếu tìm thấy trùng khớp
+      if (match) {
+        const fromDate = new Date(existingPrice.thoiGianBatDau).toLocaleDateString("vi-VN");
+        const toDate = new Date(existingPrice.thoiGianKetThuc).toLocaleDateString("vi-VN");
+        const routeName = match.tuyenDuong.tenTuyen || "Unknown Route";
+        const vehicleName = match.loaiXe.tenLoaiXe || "Unknown Vehicle";
+
+        return {
+          isConflict: true,
+          message: `Không thể lưu. Đã tồn tại giá vé từ ${fromDate} đến ${toDate} cho tuyến "${routeName}" - loại xe "${vehicleName}" (Mã giá vé: ${existingPrice.maGiaVe}).`,
+        };
+      }
+    }
+  }
+
+  return { isConflict: false };
+};
+
+// --- CONTROLLERS ---
 
 export const createGiaVe = async (req, res) => {
   try {
+    const { thoiGianBatDau, thoiGianKetThuc, chiTietGiaVe } = req.body;
+
+    // Kiểm tra trùng lặp
+    const check = await checkDuplicateTicketPrice(
+      thoiGianBatDau,
+      thoiGianKetThuc,
+      chiTietGiaVe
+    );
+
+    if (check.isConflict) {
+      return res.status(400).json({ error: check.message });
+    }
+
     const giaVe = new GiaVe(req.body);
     await giaVe.save();
     res.status(201).json(giaVe);
@@ -11,9 +90,40 @@ export const createGiaVe = async (req, res) => {
   }
 };
 
+export const updateGiaVe = async (req, res) => {
+  try {
+    const { thoiGianBatDau, thoiGianKetThuc, chiTietGiaVe } = req.body;
+    const { id } = req.params;
+
+    // Kiểm tra trùng lặp (truyền id vào để loại trừ chính nó)
+    const check = await checkDuplicateTicketPrice(
+      thoiGianBatDau,
+      thoiGianKetThuc,
+      chiTietGiaVe,
+      id
+    );
+
+    if (check.isConflict) {
+      return res.status(400).json({ error: check.message });
+    }
+
+    const giaVe = await GiaVe.findByIdAndUpdate(id, req.body, {
+      new: true,
+    });
+    if (!giaVe) return res.status(404).json({ error: "Không tìm thấy giá vé" });
+    res.json(giaVe);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
+// Các hàm khác giữ nguyên
 export const getAllGiaVe = async (req, res) => {
   try {
-    const giaVes = await GiaVe.find();
+    const giaVes = await GiaVe.find().populate({
+        path: "chiTietGiaVe.tuyenDuong chiTietGiaVe.loaiXe",
+        select: "tenTuyen tenLoaiXe"
+    }).sort({ createdAt: -1 });
 
     res.json(giaVes);
   } catch (err) {
@@ -32,17 +142,6 @@ export const getGiaVeById = async (req, res) => {
   }
 };
 
-export const updateGiaVe = async (req, res) => {
-  try {
-    const giaVe = await GiaVe.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-    });
-    if (!giaVe) return res.status(404).json({ error: "Không tìm thấy giá vé" });
-    res.json(giaVe);
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-};
 export const deleteGiaVe = async (req, res) => {
   try {
     const giaVe = await GiaVe.findById(req.params.id);
@@ -68,6 +167,27 @@ export const addChiTietGiaVe = async (req, res) => {
     const { tuyenDuong, loaiXe, soTienThanhToan } = req.body;
     if (!tuyenDuong || !loaiXe || soTienThanhToan === undefined) {
         return res.status(400).json({ error: "Thiếu thông tin tuyến đường, loại xe hoặc số tiền." });
+    }
+
+    // Kiểm tra conflict cho chi tiết mới thêm vào
+    const check = await checkDuplicateTicketPrice(
+        giaVe.thoiGianBatDau,
+        giaVe.thoiGianKetThuc,
+        [{ tuyenDuong, loaiXe }], // Tạo mảng chứa 1 item mới
+        giaVe._id // Loại trừ chính bảng giá hiện tại (để so với các bảng giá KHÁC)
+    );
+
+    // Lưu ý: Logic trên chỉ check conflict với BẢNG GIÁ KHÁC.
+    // Nếu muốn check xem trong chính bảng giá này đã có chưa:
+    const duplicateInSelf = giaVe.chiTietGiaVe.find(
+        ct => ct.tuyenDuong.toString() === tuyenDuong && ct.loaiXe.toString() === loaiXe
+    );
+    if(duplicateInSelf) {
+        return res.status(400).json({ error: "Tuyến đường và loại xe này đã tồn tại trong bảng giá này." });
+    }
+
+    if (check.isConflict) {
+        return res.status(400).json({ error: check.message });
     }
 
     giaVe.chiTietGiaVe.push({ tuyenDuong, loaiXe, soTienThanhToan });
@@ -123,6 +243,20 @@ export const toggleActiveStatus = async (req, res) => {
   try {
     const giaVe = await GiaVe.findById(req.params.id);
     if (!giaVe) return res.status(404).json({ error: "Không tìm thấy giá vé" });
+    
+    // Nếu đang định active lại (từ false -> true), cần kiểm tra xem có bị trùng không
+    if (!giaVe.active) {
+        const check = await checkDuplicateTicketPrice(
+            giaVe.thoiGianBatDau,
+            giaVe.thoiGianKetThuc,
+            giaVe.chiTietGiaVe,
+            giaVe._id
+        );
+        if (check.isConflict) {
+            return res.status(400).json({ error: "Không thể kích hoạt lại. " + check.message });
+        }
+    }
+
     giaVe.active = !giaVe.active;
     await giaVe.save();
     res.json(giaVe);
@@ -130,6 +264,7 @@ export const toggleActiveStatus = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
 export const timGiaVeApDung = async (req, res) => {
     try {
         const { tuyenDuongId, loaiXeId, ngayHienTai } = req.query;

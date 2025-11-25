@@ -39,7 +39,6 @@ app.use("/api/v1/khach-hang", khachHangRouter);
 app.use("/api/v1/tai-khoan-khach-hang", taiKhoanKHRouter);
 
 app.use(errorMiddleware);
-
 app.listen(PORT, async () => {
   console.log(`Server is running on port http://localhost:${PORT}`);
   console.log(new Date());

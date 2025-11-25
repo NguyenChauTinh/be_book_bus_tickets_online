@@ -1,7 +1,7 @@
 // --- Các thư viện cần thiết ---
 import amqp from 'amqplib';
 import nodemailer from 'nodemailer';
-import { RABBITMQ_URL, NOTIFICATION_EXCHANGE, NOTIFICATION_QUEUE, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS } from './config/env.js';
+import { RABBITMQ_URL, NOTIFICATION_EXCHANGE, NOTIFICATION_QUEUE, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER } from './config/env.js';
 import { getBookingSuccessTemplate, getRegistrationSuccessTemplate } from './utils/email-template.js';
 const emailTransporter = nodemailer.createTransport({
     host: SMTP_HOST,
@@ -12,6 +12,7 @@ const emailTransporter = nodemailer.createTransport({
         pass: SMTP_PASS,
     },
 });
+
 
 
 async function sendEmail(to, subject, htmlContent) {
@@ -27,16 +28,14 @@ async function sendEmail(to, subject, htmlContent) {
     }
 }
 
+
 function sendNotification(notificationData) {
     const { userId, type, email, phone, payload } = notificationData;
 
-    console.log(`Loại sự kiện: ${type}`);
-    console.log(`Người dùng: ${userId}`);
-
     let subject = '';
     let emailBody = '';
-    
-    // --- 1. Tạo nội dung Email dựa trên loại sự kiện (type) ---
+    let smsBody = payload?.smsBody;
+
     if (type === 'TICKET_BOOKED_SUCCESSFULLY') {
         subject = `[Xác nhận] Vé xe #${payload.bookingId} đã được đặt thành công`;
         emailBody = getBookingSuccessTemplate({ 
@@ -54,23 +53,37 @@ function sendNotification(notificationData) {
     } else if (type === 'USER_REGISTERED') {
         subject = `Chào mừng bạn đến với hệ thống Đặt vé xe!`;
         emailBody = getRegistrationSuccessTemplate({ userName: payload.userName || 'Bạn', email });
-    } else {
-        console.warn(`   -> [EVENT UNKNOWN] Bỏ qua sự kiện không xác định: ${type}`);
+    }else if (type === 'PAYMENT_SUCCESSFUL') {
+        subject = `[Thanh Toán] Hóa đơn #${payload.bookingId} đã thanh toán thành công`;
+        emailBody = getPaymentSuccessTemplate({
+            bookingId: payload.bookingId,
+            amount: payload.amount,
+            transactionId: payload.transactionId,
+            paymentTime: payload.paymentTime,
+            customerName: payload.customerName,
+            paymentMethod: payload.paymentMethod || 'VNPAY'
+        });
+        
+        smsBody = `Thanh toan thanh cong cho ve ${payload.bookingId}. So tien: ${new Intl.NumberFormat('vi-VN').format(payload.amount)}d. Cam on quy khach.`;
+    } 
+    
+    else {
+        console.warn(`   ⚠️ [EVENT UNKNOWN] Bỏ qua sự kiện không xác định: ${type}`);
         return;
     }
 
-    // --- 2. Gửi Email ---
     if (email && emailBody) {
         sendEmail(email, subject, emailBody);
     } else if (email) {
         console.warn(`   -> [EMAIL SKIP] Bỏ qua gửi Email vì thiếu template.`);
     }
 
-    // --- 3. Logic gửi SMS (Giả lập) ---
-    if (phone && payload.smsBody) {
-        console.log(`   -> [SMS SENT MOCK] Gửi SMS đến ${phone} | Nội dung: ${payload.smsBody}`);
+    
+    if (phone && smsBody) {
+        console.warn(`   -> [SMS SKIP] Gửi SMS.`);
+
     } else if (phone) {
-        console.warn(`   -> [SMS SKIP] Bỏ qua gửi SMS vì thiếu nội dung.`);
+        console.warn(`   -> [SMS SKIP] Bỏ qua gửi SMS vì thiếu nội dung hoặc số điện thoại không hợp lệ.`);
     }
 
     console.log(`--- Xử lý hoàn tất ---`);

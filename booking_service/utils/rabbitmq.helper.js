@@ -1,4 +1,7 @@
 import amqp from 'amqplib';
+import { RABBITMQ_URL, NOTIFICATION_EXCHANGE, NOTIFICATION_QUEUE } from '../config/env.js';
+
+export let amqpChannel = null;
 
 export async function connectRabbitMQ() {
     try {
@@ -12,7 +15,7 @@ export async function connectRabbitMQ() {
         amqpChannel = null; 
     }
 }
-export function publishEvent(eventType, payload) {
+export function publishEvent(eventType, payload, email = null, phone = null) {
     if (!amqpChannel) {
         console.error("Lỗi: Không có kết nối RabbitMQ. Không thể gửi sự kiện.");
         return false;
@@ -20,17 +23,24 @@ export function publishEvent(eventType, payload) {
 
     const message = {
         type: eventType,
-        ...payload,
+        userId: payload.userId || null, 
+        email: email,
+        phone: phone,
+        payload: payload,
         timestamp: new Date().toISOString()
     };
 
-    // Publish tin nhắn lên Exchange
-    amqpChannel.publish(
-        NOTIFICATION_EXCHANGE,
-        '', // Routing Key rỗng vì đây là Fanout Exchange
-        Buffer.from(JSON.stringify(message)),
-        { persistent: true } // Đảm bảo tin nhắn không bị mất khi RabbitMQ sập
-    );
-    console.log(`[EVENT PUBLISHED] Loại: ${eventType} | Dữ liệu vé đã được gửi đến RabbitMQ.`);
-    return true;
+    try {
+        amqpChannel.publish(
+            NOTIFICATION_EXCHANGE,
+            '', 
+            Buffer.from(JSON.stringify(message)),
+            { persistent: true } 
+        );
+        console.log(`[EVENT PUBLISHED] ${eventType} | Email: ${email} | Phone: ${phone}`);
+        return true;
+    } catch (error) {
+        console.error(`[PUBLISH ERROR] Không thể gửi message: ${error.message}`);
+        return false;
+    }
 }

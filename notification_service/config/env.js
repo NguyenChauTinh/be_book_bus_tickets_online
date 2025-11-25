@@ -15,4 +15,7 @@ export const {
   SMTP_PASS,
   SMTP_HOST,
   SMTP_PORT,
+  TWILIO_ACCOUNT_SID,
+  TWILIO_AUTH_TOKEN,
+  TWILIO_PHONE_NUMBER,
 } = process.env;

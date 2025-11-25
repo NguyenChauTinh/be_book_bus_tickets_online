@@ -128,17 +128,14 @@ export const getTuyenDuongData = async (req, res) => {
   try {
     const tuyen = await TuyenDuong.findById(req.params.id).populate({
       path: "chiTietTuyen",
-      // ✅ Sắp xếp các điểm dừng theo thứ tự
       options: { sort: { thuTu: 1 } },
       populate: {
         path: "diaDiem",
-        // ✅ Cần lấy thêm 'diaChi' và 'tenDiaDiem' để trả về cho frontend
         select: "tenDiaDiem diaChi",
       },
     });
 
     if (!tuyen) {
-      // ✅ Sửa Lỗi 1: Gói response lỗi
       return res
         .status(404)
         .json({ success: false, message: "Không tìm thấy tuyến" });

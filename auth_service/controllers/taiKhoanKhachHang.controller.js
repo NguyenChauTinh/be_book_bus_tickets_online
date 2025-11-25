@@ -2,7 +2,11 @@ import TaiKhoan from "../models/taiKhoanKhachHang.model.js";
 import KhachHang from "../models/khachHang.model.js";
 import redisClient from "../config/redis.js";
 import { generateOTP } from "../utils/otp.util.js";
-import { OTP_EXPIRY_SECONDS, SESSION_EXPIRY_SECONDS } from "../config/env.js";
+import {
+  OTP_EXPIRY_SECONDS,
+  SESSION_EXPIRY_SECONDS,
+
+} from "../config/env.js";
 import jwt from "jsonwebtoken";
 import { publishEvent } from "../utils/rabbitmq.helper.js";
 
@@ -65,9 +69,9 @@ export const completeRegistration = async (req, res) => {
       soDienThoai: soDienThoai,
       // Thêm các thông tin khác cần thiết cho báo cáo (nếu có)
     };
-    publishEvent('USER_REGISTERED', registrationPayload, email, soDienThoai);
+    publishEvent("USER_REGISTERED", registrationPayload, email, soDienThoai);
     await redisClient.del(redisKey);
-  
+
     res.status(201).json({
       message: "Đăng ký tài khoản thành công!",
       taiKhoan: newTaiKhoan,
@@ -95,6 +99,7 @@ export const requestLoginOtp = async (req, res) => {
     await redisClient.set(redisKey, otp, {
       EX: OTP_EXPIRY_SECONDS,
     });
+
 
     console.log(`[Login OTP] Sent to ${soDienThoai}: ${otp}`);
     res.status(200).json({
@@ -185,7 +190,7 @@ export const requestOtp = async (req, res) => {
     const { soDienThoai } = req.body;
 
     const otp = generateOTP();
-    const redisKey = `otp:login:${soDienThoai}`;
+    const redisKey = `otp:verify:${soDienThoai}`;
 
     await redisClient.set(redisKey, otp, {
       EX: OTP_EXPIRY_SECONDS,
@@ -208,7 +213,7 @@ export const verifyOtp = async (req, res) => {
   try {
     const { soDienThoai, otp } = req.body;
 
-    const redisKey = `otp:login:${soDienThoai}`;
+    const redisKey = `otp:verify:${soDienThoai}`;
     const storedOtp = await redisClient.get(redisKey);
 
     console.log(`[DEBUG] OTP từ App: ${otp} (Kiểu: ${typeof otp})`);
