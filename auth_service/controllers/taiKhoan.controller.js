@@ -2,15 +2,28 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
 import TaiKhoan from "../models/taiKhoanNhanVien.model.js";
-import { JWT_SECRET, JWT_EXPIRES_IN } from "../config/env.js";
+import {
+  JWT_SECRET,
+  JWT_EXPIRES_IN,
+  JWT_REFRESH_SECRET,
+  JWT_REFRESH_EXPIRES_IN,
+  SESSION_EXPIRY_SECONDS,
+} from "../config/env.js";
 import "../models/nhanVien.model.js";
 import "../models/vaiTro.model.js";
 import "../models/phanQuyen.model.js";
 import NhanVien from "../models/nhanVien.model.js";
+import redisClient from "../config/redis.js";
 
-const signToken = (id, tenTaiKhoan, nhanVienId) => {
-  return jwt.sign({ id, tenTaiKhoan, nhanVienId }, JWT_SECRET, {
+const signToken = (userId, tenTaiKhoan, nhanVienId) => {
+  return jwt.sign({ userId, tenTaiKhoan, nhanVienId }, JWT_SECRET, {
     expiresIn: JWT_EXPIRES_IN,
+  });
+};
+
+const signRefreshToken = (userId) => {
+  return jwt.sign({ userId }, JWT_REFRESH_SECRET, {
+    expiresIn: JWT_REFRESH_EXPIRES_IN,
   });
 };
 
@@ -94,17 +107,34 @@ export const dangNhap = async (req, res) => {
       });
     }
 
+
     const token = signToken(
       taiKhoan._id,
       taiKhoan.tenTaiKhoan,
       taiKhoan.nhanVien
     );
+    const refreshToken = signRefreshToken(taiKhoan._id);
+
+     const sessionKey = `session:${taiKhoan._id}`;
+    
+        await redisClient.set(sessionKey, "active", {
+          EX: SESSION_EXPIRY_SECONDS,
+        });
+
+    res.cookie('refreshToken', refreshToken, {
+        httpOnly: true,  
+        secure: process.env.NODE_ENV === 'production' ? true : false,
+        sameSite: 'strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000 
+    });
+
     res.status(200).json({
       success: true,
       message: "Đăng nhập thành công!",
       data: {
         taiKhoan,
-        token,
+        accessToken: token,
+        refreshToken: refreshToken,
       },
     });
   } catch (error) {
@@ -227,18 +257,18 @@ export const layDanhSachTaiKhoanPhongVe = async (req, res) => {
     // 1. Lấy ID của các nhân viên thuộc 'PHONGVE'
     const phongVeNhanViens = await NhanVien.find(
       { loaiNhanVien: "PHONGVE" },
-      "_id" 
+      "_id"
     );
 
     // 2. Chuyển thành mảng các ID
-    const phongVeNhanVienIds = phongVeNhanViens.map(nv => nv._id);
+    const phongVeNhanVienIds = phongVeNhanViens.map((nv) => nv._id);
 
     const taiKhoans = await TaiKhoan.find({
       nhanVien: { $in: phongVeNhanVienIds },
-      trangThai: true, 
+      trangThai: true,
     })
-    .populate("nhanVien", "tenNhanVien") 
-    .select("tenTaiKhoan nhanVien donViCongTac");
+      .populate("nhanVien", "tenNhanVien")
+      .select("tenTaiKhoan nhanVien donViCongTac");
 
     res.status(200).json({
       success: true,
@@ -251,4 +281,133 @@ export const layDanhSachTaiKhoanPhongVe = async (req, res) => {
       error: error.message,
     });
   }
+};
+// export const refreshToken = async (req, res) => {
+//   try {
+//     const { refreshToken } = req.body;
+    
+//     if (!refreshToken) {
+//       return res.status(401).json({
+//         success: false,
+//         message: "Không tìm thấy Refresh Token.",
+//       });
+//     }
+
+//     const decoded = jwt.verify(refreshToken, REFRESH_TOKEN_SECRET);
+
+//     const userId = decoded.userId;
+//     const sessionKey = `session:${userId}`;
+//     const sessionExists = await redisClient.get(sessionKey);
+
+//     if (!sessionExists) {
+//       res.clearCookie("refreshToken", {
+//         httpOnly: true,
+//         sameSite: "strict",
+//         secure: true,
+//       });
+//       return res.status(403).json({
+//         success: false,
+//         message: "Phiên đăng nhập không hợp lệ hoặc đã kết thúc.",
+//       });
+//     }
+
+//     const newAccessToken = jwt.sign({ userId: userId }, JWT_SECRET, {
+//       expiresIn: JWT_EXPIRES_IN,
+//     });
+
+//     res.status(200).json({
+//       success: true,
+//       accessToken: newAccessToken,
+//     });
+//   } catch (error) {
+//     if (error.name === "TokenExpiredError") {
+//       return res.status(403).json({
+//         success: false,
+//         message: "Refresh Token đã hết hạn. Vui lòng đăng nhập lại.",
+//       });
+//     }
+//     return res
+//       .status(403)
+//       .json({ success: false, message: "Refresh Token không hợp lệ." });
+//   }
+// };
+
+export const refreshToken = async (req, res) => {
+    try {
+        // 1. Lấy Refresh Token từ Cookie (HttpOnly)
+        const cookies = req.cookies;
+        
+        if (!cookies || !cookies.refreshToken) {
+            return res.status(401).json({ 
+                success: false, 
+                message: "Bạn chưa đăng nhập hoặc phiên đã hết hạn (Không tìm thấy Refresh Token)." 
+            });
+        }
+
+        const refreshToken = cookies.refreshToken;
+
+        const decoded = jwt.verify(refreshToken, JWT_REFRESH_SECRET);
+
+        // Đảm bảo user chưa logout hoặc chưa bị cấm
+        const userId = decoded.userId;
+        const sessionKey = `session:${userId}`;
+        const sessionExists = await redisClient.get(sessionKey);
+
+        if (!sessionExists) {
+            // Nếu Redis không còn key -> User đã logout -> Xóa cookie luôn
+            res.clearCookie('refreshToken', { httpOnly: true, sameSite: 'strict', secure: true });
+            return res.status(403).json({ 
+                success: false, 
+                message: "Phiên đăng nhập không hợp lệ hoặc đã kết thúc." 
+            });
+        }
+
+        const newAccessToken = jwt.sign(
+            { userId: userId }, 
+            JWT_SECRET, 
+            { expiresIn: JWT_EXPIRES_IN } 
+        );
+
+        // 5. (Tùy chọn nâng cao) Token Rotation: Đổi luôn cả Refresh Token mới
+        // Giúp bảo mật hơn: Nếu refresh token cũ bị lộ, nó chỉ dùng được 1 lần
+        /*
+        const newRefreshToken = jwt.sign(
+            { userId: userId }, 
+            process.env.REFRESH_TOKEN_SECRET, 
+            { expiresIn: '7d' } 
+        );
+
+        // Ghi đè cookie cũ
+        res.cookie('refreshToken', newRefreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 ngày
+        });
+        */
+        const taiKhoan = await TaiKhoan.findById(userId).populate([
+      { path: "nhanVien" },
+      {
+        path: "vaiTro",
+        populate: {
+          path: "phanQuyen",
+          model: "Quyen",
+        },
+      },
+    ]);
+
+        res.status(200).json({
+            success: true,
+            accessToken:  newAccessToken,
+            taiKhoan: taiKhoan,
+        });
+
+    } catch (error) {
+        res.clearCookie('refreshToken', { httpOnly: true, sameSite: 'strict', secure: true });
+        
+        if (error.name === 'TokenExpiredError') {
+            return res.status(403).json({ success: false, message: "Refresh Token đã hết hạn. Vui lòng đăng nhập lại." });
+        }
+        return res.status(403).json({ success: false, message: "Refresh Token không hợp lệ." });
+    }
 };

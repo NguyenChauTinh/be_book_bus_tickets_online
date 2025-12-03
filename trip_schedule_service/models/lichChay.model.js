@@ -52,6 +52,10 @@ const LichChayChiTietSchema = new mongoose.Schema({
   ghiChu: {
     type: String,
   },
+  soLuongVe: {
+    type: Number,
+    default: 0,
+  },
 });
 
 const LichChayMasterSchema = new mongoose.Schema(

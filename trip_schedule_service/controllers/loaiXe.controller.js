@@ -2,7 +2,7 @@ import LoaiXe from '../models/loaiXe.model.js';
 
 export const createLoaiXe = async (req, res) => {
     try {
-        const { maLoaiXe, tenLoaiXe, moTa, trangThai, soDoGhe } = req.body;
+        const { maLoaiXe, tenLoaiXe, moTa, trangThai, soDoGhe, soLuongGhe } = req.body;
 
         if (!Array.isArray(soDoGhe) || soDoGhe.length === 0) {
             return res.status(400).json({ 
@@ -16,6 +16,7 @@ export const createLoaiXe = async (req, res) => {
             moTa,
             trangThai,
             soDoGhe, 
+            soLuongGhe
         });
 
         await newLoaiXe.save();

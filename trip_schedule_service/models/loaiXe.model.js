@@ -27,6 +27,11 @@ const LoaiXeSchema = new mongoose.Schema(
             type: [GheSchema], 
             default: [],
         },
+        soLuongGhe: {
+            type: Number,
+            required: true,
+            min: 1,
+        },
     },
     {
         timestamps: true,

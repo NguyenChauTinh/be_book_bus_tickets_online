@@ -3,6 +3,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 
 import { PORT } from "./config/env.js";
+import { connectToEureka, disconnectEureka } from "./config/eureka.js";
 import connectToDatabase from "./database/mongodb.js";
 import errorMiddleware from "./middlewares/error.middleware.js";
 import khuyenMaiRouter from "./routes/khuyenMai.route.js";
@@ -29,5 +30,10 @@ app.listen(PORT, async () => {
   console.log(`Server is running on port http://localhost:${PORT}`);
   console.log(new Date());
   await connectToDatabase();
+  connectToEureka();
+});
+process.on('SIGINT', () => {
+  disconnectEureka();
+  process.exit();
 });
 export default app;

@@ -700,10 +700,9 @@ const callYourPriceCalculationAPI = async (tripId, seatIds, promoCode) => {
 };
 
 // (Cấu hình API_KEY và API_URL giữ nguyên)
-const API_KEY = "AIzaSyAaKOXhDKTGKFDH0GvfzEkwR5tabN7Vs14"; // Thay bằng API key của bạn
+const API_KEY = "AIzaSyAaKOXhDKTGKFDH0GvfzEkwR5tabN7Vs14";
 const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`;
 
-// ✅ SỬA 2: `systemPrompt` (Dạy AI dùng `id` thay vì `maChuyenXe`)
 const systemPrompt = `
   Bạn là trợ lý AI chính thức của Nhà xe Việt Tân Phát.
   Nhiệm vụ của bạn là giúp hành khách tìm kiếm chuyến xe,
@@ -975,7 +974,6 @@ const tools = [
           properties: {
             tripId: {
               type: "STRING",
-              // --- SỬA Ở ĐÂY ---
               description: "ID (ObjectId) của chuyến xe (ví dụ: '6908ba...')",
             },
             seatIds: {
@@ -1048,7 +1046,6 @@ async function processMessage(userInput, chatHistory) {
   }
 }
 
-// (Hàm run - lõi gọi Gemini - đã cập nhật để dùng axios)
 async function run(history) {
   const payload = {
     contents: history,
@@ -1058,7 +1055,6 @@ async function run(history) {
     tools: tools,
   };
 
-  // ✅ THAY ĐỔI: Dùng axios thay vì fetch
   const response = await axios.post(API_URL, payload, {
     headers: { "Content-Type": "application/json" },
   });
@@ -1071,10 +1067,8 @@ async function run(history) {
     );
   }
 
-  // ✅ THAY ĐỔI: 'response.data' thay vì 'response.json()'
   const result = response.data;
 
-  // (Phần còn lại của hàm 'run' giữ nguyên y hệt)
   const candidate = result.candidates?.[0];
 
   if (!candidate || !candidate.content || !candidate.content.parts) {
@@ -1094,7 +1088,6 @@ async function run(history) {
 
     let functionResult;
 
-    // (Các lệnh gọi hàm này giờ sẽ gọi phiên bản đã được refactor ở trên)
     if (functionName === "find_trips") {
       functionResult = await callYourTripAPI(
         args.departure,

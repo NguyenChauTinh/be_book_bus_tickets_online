@@ -68,6 +68,10 @@ const ChuyenXeSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    soLuongVe: {
+      type: Number,
+      default: 0,
+    },
   },
   { timestamps: true }
 );

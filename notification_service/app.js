@@ -1,6 +1,7 @@
 import express from 'express';
 import { setupConsumer } from './notification_consumer.js';
 import { PORT } from './config/env.js';
+import { connectToEureka, disconnectEureka } from './config/eureka.js';
 
 const app = express();
 let currentQueue = 'N/A';
@@ -23,6 +24,12 @@ async function startServer() {
         console.log(`Express server đang chạy trên cổng ${PORT}`);
         console.log(`Notification Service đã sẵn sàng!`);
     });
+    connectToEureka();
 }
+
+process.on('SIGINT', () => {
+    disconnectEureka();
+    process.exit();
+});
 
 startServer();

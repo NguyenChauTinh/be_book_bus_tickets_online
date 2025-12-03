@@ -1,7 +1,7 @@
 // --- Các thư viện cần thiết ---
 import amqp from 'amqplib';
 import nodemailer from 'nodemailer';
-import { RABBITMQ_URL, NOTIFICATION_EXCHANGE, NOTIFICATION_QUEUE, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER } from './config/env.js';
+import { RABBITMQ_URL, NOTIFICATION_EXCHANGE, NOTIFICATION_QUEUE, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS} from './config/env.js';
 import { getBookingSuccessTemplate, getRegistrationSuccessTemplate } from './utils/email-template.js';
 const emailTransporter = nodemailer.createTransport({
     host: SMTP_HOST,

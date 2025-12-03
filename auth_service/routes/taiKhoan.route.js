@@ -5,7 +5,8 @@ import {
     chinhSuaTaiKhoan,
     timTaiKhoan,
     layDanhSachTaiKhoan,
-    layDanhSachTaiKhoanPhongVe
+    layDanhSachTaiKhoanPhongVe,
+    refreshToken
 } from '../controllers/taiKhoan.controller.js';
 
 
@@ -17,6 +18,7 @@ taiKhoanRouter.post('/dang-ky', dangKy);
 
 taiKhoanRouter.post('/dang-nhap', dangNhap);
 
+taiKhoanRouter.post('/refresh-token', refreshToken);
 
 taiKhoanRouter.put('/:id', chinhSuaTaiKhoan);
 

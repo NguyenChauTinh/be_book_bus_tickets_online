@@ -26,6 +26,6 @@ const diadiemSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const diadiem = mongoose.model("DiaDiem", diadiemSchema);
+const DiaDiem = mongoose.model("DiaDiem", diadiemSchema);
 
-export default diadiem;
+export default DiaDiem;

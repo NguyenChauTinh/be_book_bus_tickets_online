@@ -3,6 +3,8 @@ import cors from "cors";
 import errorMiddleware from "./middlewares/error.middleware.js";
 import cookieParser from "cookie-parser";
 import { PORT } from "./config/env.js";
+import { connectToEureka, disconnectEureka } from "./config/eureka.js";
+import { connectRabbitMQ } from "./utils/rabbitmq.helper.js";
 import connectDB from "./database/mongodb.js";
 import diaDiemRouter from "./routes/diaDiem.routes.js";
 import tuyenDuongRouter from "./routes/tuyenDuong.routes.js";
@@ -21,11 +23,8 @@ app.use(cookieParser());
 
 app.use(
   cors({
-    origin: true, // <-- Bỏ dòng này
-    // origin: "*",  // <-- Thêm dòng này (Cho phép tất cả)
+    origin: true, 
     credentials: true,
-    // methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    // allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
@@ -36,24 +35,30 @@ app.use("/api/v1/chuyen-xe", chuyenXeRouter);
 app.use("/api/v1/loai-xe", loaiXeRouter);
 app.use("/api/v1/xe", xeRouter);
 app.use("/api/v1/gia-ve", giaVeRouter);
-app.use('/api/v1/don-vi-cong-tac', DonViCongTacRouter);
+app.use("/api/v1/don-vi-cong-tac", DonViCongTacRouter);
 app.use(errorMiddleware);
 
 async function startServer() {
   try {
     await connectDB();
-    console.log("✅ MongoDB connected");
+    await connectRabbitMQ();
+    connectToEureka();
 
     app.listen(PORT, () => {
       console.log(`Server is running on http://localhost:${PORT}`);
       console.log(new Date());
     });
   } catch (err) {
-    console.error("❌ Failed to start server:", err);
+    console.error("Failed to start server:", err);
     process.exit(1);
   }
 }
 
 startServer();
+
+process.on("SIGINT", () => {
+  disconnectEureka();
+  process.exit();
+});
 
 export default app;

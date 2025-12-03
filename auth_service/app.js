@@ -12,15 +12,19 @@ import phanQuyenRouter from "./routes/phanQuyen.route.js";
 import taiKhoanKHRouter from "./routes/taiKhoanKhachHang.route.js";
 import khachHangRouter from "./routes/khachHang.route.js";
 import { connectRabbitMQ } from "./utils/rabbitmq.helper.js";
+import { connectToEureka, disconnectEureka } from './config/eureka.js';
 
 const app = express();
 
-app.use(
-  cors({
-    origin: true,
-    credentials: true,
-  })
-);
+
+app.get('/info', (req, res) => {
+    res.json({ status: 'UP' });
+});
+app.use((req, res, next) => {
+    console.log(`[DEBUG AUTH] URL Nhận được: ${req.url}`);
+    console.log(`[DEBUG AUTH] URL Gốc: ${req.originalUrl}`);
+    next();
+});
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -44,6 +48,12 @@ app.listen(PORT, async () => {
   console.log(new Date());
   await connectToDatabase();
   await connectRabbitMQ();
+  connectToEureka();
+});
+
+process.on('SIGINT', () => {
+    disconnectEureka();
+    process.exit();
 });
 
 export default app;

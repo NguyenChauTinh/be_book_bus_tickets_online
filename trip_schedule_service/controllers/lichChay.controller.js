@@ -86,9 +86,9 @@ const createChuyenXeHangLoat = async (
           dateIterator,
           line.gioKhoiHanh
         );
-
         const existingTrip = await ChuyenXe.findOne({ maChuyenXe: tripCode });
         if (!existingTrip) {
+          console.log("Giá trị soLuongGhe trong Line:", line.soLuongVe);
           const newTrip = {
             maChuyenXe: tripCode,
             maLichChay: masterSchedule.maLichChay,
@@ -102,6 +102,7 @@ const createChuyenXeHangLoat = async (
             ghiChu: line.ghiChu,
             laiXe: line.laiXe,
             phuXe: line.phuXe,
+            soLuongVe: line.soLuongVe || 0 ,
           };
 
           tripsToInsert.push(newTrip);

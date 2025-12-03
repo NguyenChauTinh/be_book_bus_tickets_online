@@ -1,6 +1,8 @@
 import ChuyenXe from "../models/chuyenXe.model.js";
 import axios from "axios";
-
+import { publishSearchHistoryEvent } from "../utils/rabbitmq.helper.js";
+import DiaDiem from "../models/diaDiem.model.js";
+import { getTuyenDuongByIdInternal } from "./tuyenDuong.controller.js";
 export const createChuyenXeDonLe = async (req, res) => {
   try {
     const newTrip = new ChuyenXe(req.body);
@@ -244,6 +246,8 @@ const GIAVE_API_URL = "http://localhost:3001/api/v1/gia-ve/tim-gia-ve-ap-dung";
 
 export const getDanhSachChuyenXeTheoNgayVaDiaDiem = async (req, res) => {
   try {
+    const userId = req.headers["x-user-id"];
+    console.log("User ID từ header:", userId);
     const { ngayKhoiHanh, diemDiId, diemDenId } = req.query;
 
     if (!ngayKhoiHanh) {
@@ -251,13 +255,37 @@ export const getDanhSachChuyenXeTheoNgayVaDiaDiem = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Vui lòng cung cấp ngày khởi hành." });
     }
+    let tenDiemDi = null;
+    let tenDiemDen = null;
+    if (diemDiId) {
+      const diemDi = await DiaDiem.findById(diemDiId)
+        .select("tenDiaDiem")
+        .lean();
+      if (diemDi) tenDiemDi = diemDi.tenDiaDiem;
+    }
+
+    if (diemDenId) {
+      const diemDen = await DiaDiem.findById(diemDenId)
+        .select("tenDiaDiem")
+        .lean();
+      if (diemDen) tenDiemDen = diemDen.tenDiaDiem;
+    }
+    if (userId && ngayKhoiHanh && diemDiId && diemDenId) {
+      const searchDetails = {
+        diemDiId,
+        diemDenId,
+        ngayKhoiHanh,
+        tenDiemDi: tenDiemDi || "Không rõ",
+        tenDiemDen: tenDiemDen || "Không rõ",
+      };
+      publishSearchHistoryEvent(userId, searchDetails);
+    }
 
     const startOfDay = new Date(ngayKhoiHanh);
     startOfDay.setUTCHours(0, 0, 0, 0);
     const endOfDay = new Date(ngayKhoiHanh);
     endOfDay.setUTCHours(23, 59, 59, 999);
 
-    // BƯỚC 1: Populate thêm 'soDoGhe'
     const trips = await ChuyenXe.find({
       ngayKhoiHanh: { $gte: startOfDay, $lte: endOfDay },
       trangThai: "CHUA_XUAT_BEN",
@@ -270,38 +298,19 @@ export const getDanhSachChuyenXeTheoNgayVaDiaDiem = async (req, res) => {
       return res.status(200).json({ success: true, data: [] });
     }
 
-    // BƯỚC 2 & 3: Lấy số vé và thông tin tuyến đường
-    const tripIds = trips.map((trip) => trip._id.toString());
-    let ticketCountsMap = {};
-    try {
-      const response = await axios.post(
-        "http://localhost:3005/api/v1/ve-xe/thong-ke/so-luong-theo-chuyen",
-        { chuyenXeIds: tripIds }
-      );
-      if (response.data.success) {
-        ticketCountsMap = response.data.data;
-      }
-    } catch (apiError) {
-      console.error("Lỗi khi gọi đến Ticket Service:", apiError.message);
-    }
-
     const enrichedTripsPromises = trips.map(async (trip) => {
-      const soVeDaDat = ticketCountsMap[trip._id.toString()] || 0;
+      const soVeConLai = trip.soLuongVe || 0;
+      
       let tuyenDuongData = trip.tuyenDuong;
+      
       try {
         if (trip.tuyenDuong) {
-          const tuyenDuongResponse = await axios.get(
-            `http://localhost:3001/api/v1/tuyen-duong/lay-tuyen-duong/${trip.tuyenDuong}`
-          );
-          if (tuyenDuongResponse.data) {
-            tuyenDuongData = tuyenDuongResponse.data;
-          }
+          tuyenDuongData = await getTuyenDuongByIdInternal(trip.tuyenDuong);
         }
       } catch (error) {
-        // Lỗi này không nghiêm trọng, có thể bỏ qua
+
       }
-      console.log("Tuyến đường dữ liệu:", tuyenDuongData);
-      return { ...trip, soVeDaDat, tuyenDuong: tuyenDuongData };
+      return { ...trip, soVeConLai, tuyenDuong: tuyenDuongData };
     });
 
     const finalTripsData = await Promise.all(enrichedTripsPromises);
@@ -342,7 +351,6 @@ export const getDanhSachChuyenXeTheoNgayVaDiaDiem = async (req, res) => {
         const priceResponse = await axios.get(GIAVE_API_URL, { params });
 
         if (priceResponse.data.success) {
-          // Định dạng lại giá vé thành chuỗi tiền tệ
           price = new Intl.NumberFormat("vi-VN", {
             style: "currency",
             currency: "VND",
@@ -354,7 +362,7 @@ export const getDanhSachChuyenXeTheoNgayVaDiaDiem = async (req, res) => {
           error.message
         );
       }
-      return { ...trip, price }; // Gắn giá vé vào object trip
+      return { ...trip, price }; 
     });
 
     const tripsWithPrice = await Promise.all(tripsWithPricePromises);
@@ -364,14 +372,9 @@ export const getDanhSachChuyenXeTheoNgayVaDiaDiem = async (req, res) => {
       const hours = Math.floor(trip.tuyenDuong?.thoiGian / 60);
       const minutes = trip.tuyenDuong?.thoiGian % 60;
       const duration = `${hours}h ${minutes}p`;
-
-      const totalSeats =
-        trip.loaiXe?.soDoGhe?.filter((ghe) => ghe.trangThai === true)?.length ||
-        0;
-
       const seatsLeft = `${Math.max(
         0,
-        totalSeats - (trip.soVeDaDat || 0)
+        (trip.soVeConLai || 0)
       )} chỗ trống`;
 
       const chiTiet = trip.tuyenDuong?.chiTietTuyen || [];
@@ -404,8 +407,8 @@ export const getDanhSachChuyenXeTheoNgayVaDiaDiem = async (req, res) => {
         duration,
         departureStation,
         arrivalStation,
-        price: trip.price, // Sử dụng giá vé đã lấy được
-        price1: trip.price, // Sử dụng giá vé đã lấy được
+        price: trip.price,
+        price1: trip.price,
         seatsLeft,
       };
     });
@@ -470,10 +473,10 @@ export const getChuyenXeTheoKhoangNgay = async (req, res) => {
     }
 
     const startDate = new Date(tuNgay);
-    startDate.setHours(0, 0, 0, 0); 
+    startDate.setHours(0, 0, 0, 0);
 
     const endDate = new Date(denNgay);
-    endDate.setHours(23, 59, 59, 999); 
+    endDate.setHours(23, 59, 59, 999);
 
     const trips = await ChuyenXe.find({
       ngayKhoiHanh: {
@@ -481,9 +484,9 @@ export const getChuyenXeTheoKhoangNgay = async (req, res) => {
         $lte: endDate,
       },
     })
-      .populate("loaiXe") 
-      .populate("xe") 
-      .sort({ ngayKhoiHanh: 1, gioKhoiHanh: 1 }); 
+      .populate("loaiXe")
+      .populate("xe")
+      .sort({ ngayKhoiHanh: 1, gioKhoiHanh: 1 });
 
     res.status(200).json({
       success: true,

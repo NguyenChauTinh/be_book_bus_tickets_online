@@ -1,6 +1,31 @@
 import mongoose from 'mongoose';
 const { Schema } = mongoose;
-
+const lichSuTimKiemSchema = new Schema({
+    diemDiId: { 
+        type: Schema.Types.ObjectId, 
+        required: true 
+    },
+    diemDenId: { 
+        type: Schema.Types.ObjectId, 
+        required: true 
+    },
+    tenDiemDi: { 
+        type: String, 
+        required: true 
+    },
+    tenDiemDen: { 
+        type: String, 
+        required: true 
+    },
+    ngayKhoiHanh: { 
+        type: Date, 
+        required: true 
+    },
+    timestamp: { 
+        type: Date, 
+        default: Date.now 
+    }
+}, { _id: false });
 const taiKhoanKhachHangSchema = new Schema(
   {
     soDienThoai: {
@@ -19,6 +44,7 @@ const taiKhoanKhachHangSchema = new Schema(
       ref: 'KhachHang',
       required: true,
     },
+    lichSuTimKiem: [lichSuTimKiemSchema]
   },
   { timestamps: true }
 );

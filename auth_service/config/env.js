@@ -1,18 +1,25 @@
 import { config } from "dotenv";
 
 config({ path: `.env.${process.env.NODE_ENV || "development"}.local` });
-console.log("DB_URI loaded is:", process.env.DB_URI);
 
 export const {
   NODE_ENV,
   PORT,
   DB_URI,
   JWT_SECRET,
+  JWT_REFRESH_SECRET,
+  JWT_REFRESH_EXPIRES_IN,
   JWT_EXPIRES_IN,
   REDIS_URL,
   RABBITMQ_URL,
   NOTIFICATION_EXCHANGE,
   OTP_EXPIRY_SECONDS,
-  SESSION_EXPIRY_SECONDS
+  SESSION_EXPIRY_SECONDS,
+  SERVICE_NAME,
+  EUREKA_HOST,
+  EUREKA_PORT,
+  SEARCH_HISTORY_EXCHANGE,
+  SEARCH_HISTORY_QUEUE,
+  SEARCH_HISTORY_ROUTING_KEY,
 
 } = process.env;

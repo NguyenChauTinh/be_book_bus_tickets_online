@@ -111,11 +111,8 @@ export const updateTuyenDuong = async (req, res) => {
 
 export const getTuyenDuong = async (req, res) => {
   try {
-    const tuyen = await TuyenDuong.findById(req.params.id).populate({
-      path: "chiTietTuyen",
-      populate: { path: "diaDiem", select: "maDiaDiem tenDiaDiem" },
-    });
-
+    const tuyen = await getTuyenDuongByIdInternal(req.params.id);
+    
     if (!tuyen) return res.status(404).json({ error: "Không tìm thấy tuyến" });
 
     res.json(tuyen);
@@ -141,28 +138,22 @@ export const getTuyenDuongData = async (req, res) => {
         .json({ success: false, message: "Không tìm thấy tuyến" });
     }
 
-    // ✅ Sửa Lỗi 2: Biến đổi dữ liệu
     if (!tuyen.chiTietTuyen || tuyen.chiTietTuyen.length < 2) {
-      // Tuyến đường phải có ít nhất 2 điểm (đi và đến)
       return res.status(400).json({
         success: false,
         message: "Tuyến đường không có đủ chi tiết điểm đi/đến",
       });
     }
 
-    // Lấy điểm đầu tiên làm điểm đón
     const diemDonChiTiet = tuyen.chiTietTuyen[0];
-    // Lấy điểm cuối cùng làm điểm trả
     const diemTraChiTiet = tuyen.chiTietTuyen[tuyen.chiTietTuyen.length - 1];
 
-    // Tạo object mới có cấu trúc (shape) mà frontend mong đợi
     const formattedTuyen = {
       _id: tuyen._id,
       tenTuyen: tuyen.tenTuyen,
       thoiGianDenDuKien: diemTraChiTiet.thoiGianDenDuKien || 0,
 
       diemDon: {
-        // ⚠️ Giả định: 'diaDiem' trả về 'tenDiaDiem' và 'diaChi'
         tenDiem: diemDonChiTiet.diaDiem?.tenDiaDiem || "Không rõ điểm đón",
         diaChi: diemDonChiTiet.diaDiem?.diaChi || "Không rõ địa chỉ",
       },
@@ -337,4 +328,13 @@ export const getDiaDiemKetNoi = async (req, res) => {
     console.error("Lỗi khi tìm địa điểm kết nối:", err);
     res.status(500).json({ success: false, message: err.message });
   }
+};
+export const getTuyenDuongByIdInternal = async (id) => {
+  const tuyen = await TuyenDuong.findById(id).populate({
+    path: "chiTietTuyen",
+    options: { sort: { thuTu: 1 } }, 
+    populate: { path: "diaDiem", select: "maDiaDiem tenDiaDiem" },
+  }).lean();
+  
+  return tuyen;
 };

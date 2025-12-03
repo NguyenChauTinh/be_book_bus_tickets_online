@@ -12,6 +12,7 @@
     "axios": "^1.13.2",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
+    "eureka-js-client": "^4.5.0",
     "express": "^5.1.0",
     "nodemailer": "^7.0.10",
     "nodemon": "^3.1.11",
