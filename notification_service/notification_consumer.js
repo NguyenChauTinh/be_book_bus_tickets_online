@@ -110,10 +110,10 @@ export async function setupConsumer() {
                 try {
                     const messageContent = JSON.parse(msg.content.toString());
                     sendNotification(messageContent); 
-                    channel.ack(msg); // Xác nhận đã xử lý thành công
+                    channel.ack(msg); 
                 } catch (error) {
                     console.error("Lỗi khi xử lý tin nhắn:", error.message);
-                    channel.nack(msg); // Trả lại tin nhắn nếu xử lý lỗi
+                    channel.nack(msg); 
                 }
             }
         }, {

@@ -3,7 +3,10 @@ import HoaDon from "../models/hoaDon.model.js";
 import mongoose from "mongoose";
 import moment from "moment";
 import Notification from "../models/notification.model.js";
-import { publishEvent, publishSeatUpdateCommand } from "../utils/rabbitmq.helper.js";
+import {
+  publishEvent,
+  publishSeatUpdateCommand,
+} from "../utils/rabbitmq.helper.js";
 
 /**
  * @desc Tạo mã vé ngẫu nhiên, không trùng lặp, dài 8-10 ký tự.
@@ -136,8 +139,17 @@ export const createTicket = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
-    const { chiTiet, maGiamGia, nhanVienTao, userId, email, route, departureDate, selectedPickup} = req.body;
-
+    const {
+      chiTiet,
+      maGiamGia,
+      nhanVienTao,
+      userId,
+      email,
+      route,
+      departureDate,
+      selectedPickup,
+    } = req.body;
+    console.log("Request to create ticket:", req.body);
     if (!chiTiet || chiTiet.length === 0) {
       return res.status(400).json({
         success: false,
@@ -215,7 +227,7 @@ export const createTicket = async (req, res) => {
       const chuyenXeId = firstDetail.chuyenXe;
       if (chuyenXeId && seatsCount > 0) {
         console.log("Publishing seat update command to RabbitMQ...");
-        publishSeatUpdateCommand(chuyenXeId, -seatsCount); 
+        publishSeatUpdateCommand(chuyenXeId, -seatsCount);
       }
       const eventPayload = {
         userId: savedTicket.userId,
@@ -225,8 +237,8 @@ export const createTicket = async (req, res) => {
         seats: savedTicket.chiTiet.map((ct) => ct.maChoNgoi),
         tripDetails: {
           id: firstDetail.chuyenXe,
-          route: route ||"Cần tìm kiếm thông tin tuyến đường",
-          departureTime:  departureDate || new Date(), 
+          route: route || "Cần tìm kiếm thông tin tuyến đường",
+          departureTime: departureDate || new Date(),
           selectedPickup: selectedPickup || "Chưa có điểm đón cụ thể",
         },
         smsBody: `Ve ${
@@ -235,14 +247,15 @@ export const createTicket = async (req, res) => {
           "vi-VN"
         )} VND.`,
       };
-      if(userId) {       
-      publishEvent(
-        "TICKET_BOOKED_SUCCESSFULLY",
-        eventPayload,
-        email || null, 
-        firstDetail.soDienThoai || null
-      );
-    }
+      console.log("Event Payload:", eventPayload);
+      if (userId) {
+        publishEvent(
+          "TICKET_BOOKED_SUCCESSFULLY",
+          eventPayload, 
+          email || null,
+          firstDetail.soDienThoai || null 
+        );
+      }
     } catch (rabbitmqError) {
       console.error("Lỗi khi bắn sự kiện RabbitMQ:", rabbitmqError);
       // KHÔNG làm gián đoạn response chính
@@ -799,7 +812,6 @@ export const unifiedTransferOrSwapDetails = async (req, res) => {
       success: true,
       message: "Thao tác chuyển/hoán đổi vé thành công.",
     });
-    
   } catch (error) {
     await session.abortTransaction();
     console.error("Lỗi khi chuyển/hoán đổi vé:", error);

@@ -9,6 +9,7 @@ import {
 } from "../config/env.js";
 import jwt from "jsonwebtoken";
 import { publishEvent } from "../utils/rabbitmq.helper.js";
+import mongoose from "mongoose";
 
 export const requestRegisterOtp = async (req, res) => {
   try {
@@ -238,5 +239,55 @@ export const verifyOtp = async (req, res) => {
     res
       .status(500)
       .json({ message: "Lỗi máy chủ", error: error.message, success: false });
+  }
+};
+export const getRecentSearches = async (req, res) => {
+  try {
+    const userId = req.headers["x-user-id"]; 
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Yêu cầu đăng nhập." });
+    }
+
+    const aggregationResult = await TaiKhoan.aggregate([
+      { $match: { _id: new mongoose.Types.ObjectId(userId) } },
+      
+      { $unwind: "$lichSuTimKiem" },
+
+      { $sort: { "lichSuTimKiem.timestamp": -1 } }, 
+      
+      { $limit: 50 }, 
+
+      { $group: {
+          _id: { 
+              diemDiId: "$lichSuTimKiem.diemDiId", 
+              diemDenId: "$lichSuTimKiem.diemDenId" 
+          },
+          count: { $sum: 1 }, 
+          latestSearch: { $first: "$lichSuTimKiem" } 
+      }},
+      
+      { $sort: { count: -1, "latestSearch.timestamp": -1 } },
+      
+      { $limit: 5 }, 
+
+      { $project: {
+          _id: 0,
+          count: "$count",
+          diemDiId: "$_id.diemDiId",
+          diemDenId: "$_id.diemDenId",
+          tenDiemDi: "$latestSearch.tenDiemDi",
+          tenDiemDen: "$latestSearch.tenDiemDen",
+          ngayKhoiHanh: "$latestSearch.ngayKhoiHanh",
+          timestamp: "$latestSearch.timestamp"
+      }}
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: aggregationResult,
+    });
+  } catch (error) {
+    console.error("Lỗi khi lấy lịch sử tìm kiếm:", error);
+    res.status(500).json({ success: false, message: "Lỗi máy chủ." });
   }
 };

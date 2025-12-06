@@ -24,12 +24,11 @@ export function publishEvent(eventType, payload) {
         timestamp: new Date().toISOString()
     };
 
-    // Publish tin nhắn lên Exchange
     amqpChannel.publish(
         NOTIFICATION_EXCHANGE,
-        '', // Routing Key rỗng vì đây là Fanout Exchange
+        '', 
         Buffer.from(JSON.stringify(message)),
-        { persistent: true } // Đảm bảo tin nhắn không bị mất khi RabbitMQ sập
+        { persistent: true }
     );
     console.log(`[EVENT PUBLISHED] Loại: ${eventType} | Dữ liệu vé đã được gửi đến RabbitMQ.`);
     return true;

@@ -1,13 +1,17 @@
-const PRIMARY_COLOR = '#0a6ebd';
-const TEXT_COLOR = '#333333';
-const BG_COLOR = '#f4f7fa';
-const LINK_TO_APP_HOMEPAGE = 'https://smartbus.example.com';
+const PRIMARY_COLOR = "#0a6ebd";
+const TEXT_COLOR = "#333333";
+const BG_COLOR = "#f4f7fa";
+const LINK_TO_APP_HOMEPAGE = "https://smartbus.example.com";
 
 export function getBookingSuccessTemplate(data) {
-    const { bookingId, tripDetails, seats, totalPrice, userName, departureDate } = data;
-    const formattedPrice = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(totalPrice);
-    console.log("Dữ liệu trong template đặt vé:", data);
-    return `
+  const { bookingId, tripDetails, seats, totalPrice, userName, departureDate } =
+    data;
+  const formattedPrice = new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+  }).format(totalPrice);
+  console.log("Dữ liệu trong template đặt vé:", data);
+  return `
     <!DOCTYPE html>
     <html lang="vi">
     <head>
@@ -36,7 +40,7 @@ export function getBookingSuccessTemplate(data) {
                     <h1>🎉 Vé của bạn đã được xác nhận!</h1>
                 </div>
                 <div class="content">
-                    <p>Xin chào ${userName || 'Quý khách'},</p>
+                    <p>Xin chào ${userName || "Quý khách"},</p>
                     <p>Cảm ơn bạn đã tin tưởng và đặt dịch vụ tại hệ thống đặt vé xe của chúng tôi. Dưới đây là thông tin chi tiết về chuyến đi của bạn:</p>
 
                     <div class="details-box">
@@ -46,16 +50,18 @@ export function getBookingSuccessTemplate(data) {
                         </div>
                         <div class="details-row">
                             <span>Tuyến xe:</span>
-                            <span>${tripDetails.route || 'N/A'}</span>
+                            <span>${tripDetails.route || "N/A"}</span>
                         </div>
                         <div class="details-row">
                             <span>Thời gian khởi hành:</span>
-                            <span>${departureDate || 'N/A'} (Tại ${tripDetails.selectedPickup.name || 'N/A'})</span>
+                            <span>${departureDate || "N/A"} (Tại ${
+    tripDetails.selectedPickup.name || "N/A"
+  })</span>
                             
                         </div>
                         <div class="details-row">
                             <span>Số ghế:</span>
-                            <span>${seats.join(', ') || 'N/A'}</span>
+                            <span>${seats.join(", ") || "N/A"}</span>
                         </div>
                         <div class="details-row" style="background-color: #f7f7f7; font-weight: bold;">
                             <span>Tổng thanh toán:</span>
@@ -80,9 +86,9 @@ export function getBookingSuccessTemplate(data) {
 }
 
 export function getRegistrationSuccessTemplate(data) {
-    const { userName, email } = data;
-    
-    return `
+  const { userName, email } = data;
+
+  return `
     <!DOCTYPE html>
     <html lang="vi">
     <head>
@@ -126,11 +132,23 @@ export function getRegistrationSuccessTemplate(data) {
     `;
 }
 export function getPaymentSuccessTemplate(data) {
-    const { bookingId, amount, transactionId, paymentTime, customerName, paymentMethod } = data;
-    const formattedPrice = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
-    const formattedDate = paymentTime ? new Date(paymentTime).toLocaleString('vi-VN') : new Date().toLocaleString('vi-VN');
+  const {
+    bookingId,
+    amount,
+    transactionId,
+    paymentTime,
+    customerName,
+    paymentMethod,
+  } = data;
+  const formattedPrice = new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+  }).format(amount);
+  const formattedDate = paymentTime
+    ? new Date(paymentTime).toLocaleString("vi-VN")
+    : new Date().toLocaleString("vi-VN");
 
-    return `
+  return `
     <!DOCTYPE html>
     <html lang="vi">
     <head>
@@ -157,7 +175,7 @@ export function getPaymentSuccessTemplate(data) {
                     <h1>🎉 Thanh toán Thành công!</h1>
                 </div>
                 <div class="content">
-                    <p>Xin chào <b>${customerName || 'Quý khách'}</b>,</p>
+                    <p>Xin chào <b>${customerName || "Quý khách"}</b>,</p>
                     <p>Hệ thống xác nhận bạn đã thanh toán thành công cho vé xe <b>${bookingId}</b>.</p>
 
                     <div class="details-box">

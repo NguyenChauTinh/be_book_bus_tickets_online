@@ -23,6 +23,7 @@ const serviceRoutes = [
     { prefix: '/api/v1/ve-xe', target: env.SERVICES.BOOKING },
     { prefix: '/api/v1/payment', target: env.SERVICES.BOOKING },
     { prefix: '/api/v1/bao-cao', target: env.SERVICES.BOOKING },
+    { prefix: '/api/v1/notifications', target: env.SERVICES.BOOKING },
 
     // --- Notification Service ---
     // { prefix: '/api/v1/thong-bao', target: env.SERVICES.NOTIFICATION },

@@ -2,9 +2,9 @@ import amqp from "amqplib";
 import {
   RABBITMQ_URL,
   NOTIFICATION_EXCHANGE,
-  SEARCH_HISTORY_EXCHANGE,
+  HISTORY_SEARCH_EXCHANGE,
   SEARCH_HISTORY_QUEUE,
-  SEARCH_HISTORY_ROUTING_KEY,
+  HISTORY_SEARCH_ROUTING_KEY,
 } from "../config/env.js";
 import TaiKhoanKhachHang from "../models/taiKhoanKhachHang.model.js";
 export let amqpChannel = null;
@@ -17,7 +17,7 @@ export async function connectRabbitMQ() {
       durable: true,
     });
 
-    await amqpChannel.assertExchange(SEARCH_HISTORY_EXCHANGE, "direct", {
+    await amqpChannel.assertExchange(HISTORY_SEARCH_EXCHANGE, "direct", {
       durable: true,
     });
 
@@ -27,8 +27,8 @@ export async function connectRabbitMQ() {
 
     await amqpChannel.bindQueue(
       q.queue,
-      SEARCH_HISTORY_EXCHANGE,
-      SEARCH_HISTORY_ROUTING_KEY
+      HISTORY_SEARCH_EXCHANGE,
+      HISTORY_SEARCH_ROUTING_KEY
     );
     console.log("Auth Service đã kết nối RabbitMQ và khai báo Exchange.");
 
@@ -87,7 +87,7 @@ export function publishEvent(eventType, payload, email, phone) {
             lichSuTimKiem: {
                 $each: [newHistoryEntry],
                 $sort: { timestamp: -1 }, 
-                $slice: 20 
+                $slice: 50 
             }
         }},
         { new: true, runValidators: true } 

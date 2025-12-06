@@ -21,5 +21,9 @@ taiKhoanKHRouter.post("/check/request-otp", authController.requestOtp);
 taiKhoanKHRouter.post("/check/verify", authController.verifyOtp);
 
 taiKhoanKHRouter.post("/logout", authMiddleware, authController.logout);
-
+taiKhoanKHRouter.get(
+  "/recent-searches", 
+  authMiddleware, 
+  authController.getRecentSearches
+);
 export default taiKhoanKHRouter;

@@ -249,6 +249,11 @@ export const getDanhSachChuyenXeTheoNgayVaDiaDiem = async (req, res) => {
     const userId = req.headers["x-user-id"];
     console.log("User ID từ header:", userId);
     const { ngayKhoiHanh, diemDiId, diemDenId } = req.query;
+    console.log("Tham số truy vấn nhận được:", {
+      ngayKhoiHanh,
+      diemDiId,
+      diemDenId,
+    });
 
     if (!ngayKhoiHanh) {
       return res
@@ -412,7 +417,6 @@ export const getDanhSachChuyenXeTheoNgayVaDiaDiem = async (req, res) => {
         seatsLeft,
       };
     });
-    console.log("Kết quả cuối cùng:", formattedBusTrips);
     res.status(200).json({
       success: true,
       message: "Lấy danh sách chuyến xe thành công.",
