@@ -3,18 +3,21 @@ import express from "express";
 import cors from "cors";
 
 import { PORT } from "./config/env.js";
-import { connectToEureka, disconnectEureka } from "./config/eureka.js";
 import processMessage from "./geminiService.be.js";
 
 const app = express();
-app.use(cors()); // Cho phép React Native gọi
+app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 const chatHistories = new Map();
-
+app.get('/health', (req, res) => {
+    res.status(200).json({ status: 'API Gateway is Healthy' });
+});
 app.post("/api/v1/chat", async (req, res) => {
   try {
     const { userInput, sessionId } = req.body;
+    const userId = req.headers['x-user-id'];
 
     if (!userInput || !sessionId) {
       return res
@@ -24,7 +27,7 @@ app.post("/api/v1/chat", async (req, res) => {
 
     let history = chatHistories.get(sessionId) || [];
 
-    const { reply, newHistory } = await processMessage(userInput, history);
+    const { reply, newHistory } = await processMessage(userInput, history, userId);
 
     chatHistories.set(sessionId, newHistory);
 
@@ -37,11 +40,6 @@ app.post("/api/v1/chat", async (req, res) => {
 
 
 app.listen(PORT, () => {
-  connectToEureka();
   console.log(`Chat server đang chạy trên cổng ${PORT}`);
 });
 
-process.on('SIGINT', () => {
-  disconnectEureka();
-  process.exit();
-});

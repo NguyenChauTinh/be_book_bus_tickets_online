@@ -12,23 +12,26 @@ import phanQuyenRouter from "./routes/phanQuyen.route.js";
 import taiKhoanKHRouter from "./routes/taiKhoanKhachHang.route.js";
 import khachHangRouter from "./routes/khachHang.route.js";
 import { connectRabbitMQ } from "./utils/rabbitmq.helper.js";
-import { connectToEureka, disconnectEureka } from './config/eureka.js';
 
 const app = express();
-
 
 app.get('/info', (req, res) => {
     res.json({ status: 'UP' });
 });
-app.use((req, res, next) => {
-    console.log(`[DEBUG AUTH] URL Nhận được: ${req.url}`);
-    console.log(`[DEBUG AUTH] URL Gốc: ${req.originalUrl}`);
-    next();
+app.get('/health', (req, res) => {
+    res.status(200).json({ status: 'API Gateway is Healthy' });
 });
 
 app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+app.use((req, res, next) => {
+    console.log(`[DEBUG AUTH v3.0.2] URL Nhận được: ${req.url}`);
+    next();
+});
+
+
 
 app.use("/api/v1/nhan-vien", nhanVienRouter);
 
@@ -42,18 +45,13 @@ app.use("/api/v1/khach-hang", khachHangRouter);
 
 app.use("/api/v1/tai-khoan-khach-hang", taiKhoanKHRouter);
 
-app.use(errorMiddleware);
+// app.use(errorMiddleware);
 app.listen(PORT, async () => {
   console.log(`Server is running on port http://localhost:${PORT}`);
   console.log(new Date());
   await connectToDatabase();
   await connectRabbitMQ();
-  connectToEureka();
 });
 
-process.on('SIGINT', () => {
-    disconnectEureka();
-    process.exit();
-});
 
 export default app;

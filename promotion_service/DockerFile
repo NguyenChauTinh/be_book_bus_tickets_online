@@ -1,20 +1,14 @@
-# Dùng Node.js nhẹ
+
 FROM node:20-alpine
 
-# Làm việc tại thư mục bên trong container
 WORKDIR /app
 
-# Copy package.json và package-lock.json của user_service
-COPY user_service/package*.json ./
+COPY package*.json ./
 
-# Cài dependencies
-RUN npm install --production
+RUN npm install --only=production
 
-# Copy toàn bộ mã nguồn của user_service vào container
-COPY user_service/ .
+COPY . .
 
-# Mở port service
-EXPOSE 3001
+EXPOSE 3004
 
-# Chạy ứng dụng
-CMD ["node", "server.js"]
+CMD ["node", "app.js"]

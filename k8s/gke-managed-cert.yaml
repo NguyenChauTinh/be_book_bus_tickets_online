@@ -1,0 +1,9 @@
+# gke-managed-cert.yaml (ĐÃ SỬA)
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: api-gateway-cert
+spec:
+  domains:
+    - api.smartbus.io.vn
+    - nhaxe.smartbus.io.vn 

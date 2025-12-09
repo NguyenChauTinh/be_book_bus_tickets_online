@@ -1,0 +1,101 @@
+# --- DEPLOYMENT API GATEWAY ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway-deployment
+  labels:
+    app: api-gateway
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+    spec:
+      containers:
+      - name: api-gateway-container
+        image: asia-southeast1-docker.pkg.dev/smartbusproject-480408/smartbus-repo/api-gateway-service:v3.0.26
+        ports:
+        - containerPort: 3000
+        
+        # SỬ DỤNG env: ĐỂ GHI ĐÈ VÀ LẤY SECRET
+        env:
+        # A. Ghi đè biến REDIS_URL (Khắc phục lỗi localhost)
+        # REDIS_URL trong code sẽ lấy giá trị từ REDIS_URL_PROD trong ConfigMap 
+        - name: REDIS_URL 
+          valueFrom:
+            configMapKeyRef:
+              name: smartbus-config
+              key: REDIS_URL_PROD
+              
+        # B. Lấy JWT Secrets từ Secret mới
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: api-gateway-secret
+              key: JWT_SECRET
+        - name: JWT_REFRESH_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: api-gateway-secret
+              key: JWT_REFRESH_SECRET
+
+        # C. Các URL Microservice nội bộ (Từ ConfigMap)
+        # Các biến này đã có trong ConfigMap 
+        - name: URL_AUTH_SERVICE
+          valueFrom:
+            configMapKeyRef:
+              name: smartbus-config
+              key: URL_AUTH_SERVICE
+        - name: URL_TRIP_SERVICE
+          valueFrom:
+            configMapKeyRef:
+              name: smartbus-config
+              key: URL_TRIP_SERVICE
+        - name: URL_NOTIFICATION_SERVICE
+          valueFrom:
+            configMapKeyRef:
+              name: smartbus-config
+              key: URL_NOTIFICATION_SERVICE
+        - name: URL_PROMOTION_SERVICE
+          valueFrom:
+            configMapKeyRef:
+              name: smartbus-config
+              key: URL_PROMOTION_SERVICE
+        - name: URL_BOOKING_SERVICE
+          valueFrom:
+            configMapKeyRef:
+              name: smartbus-config
+              key: URL_BOOKING_SERVICE
+        - name: URL_AI_SERVICE
+          valueFrom:
+            configMapKeyRef:
+              name: smartbus-config
+              key: URL_AI_SERVICE
+        
+        # D. Biến Cố định
+        - name: PORT
+          value: "3000"
+        - name: SERVICE_NAME
+          value: "API-GATEWAY"
+        - name: NODE_ENV
+          value: "production"
+
+---
+# --- SERVICE LOAD BALANCER ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: smartbus-loadbalancer 
+spec:
+  selector:
+    app: api-gateway
+  ports:
+  - protocol: TCP
+    port: 80 
+    targetPort: 3000
+    name: http-traffic 
+  type: NodePort

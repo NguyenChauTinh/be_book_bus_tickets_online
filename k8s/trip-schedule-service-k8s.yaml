@@ -1,0 +1,104 @@
+# --- DEPLOYMENT TRIP SCHEDULE SERVICE ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trip-schedule-service-deployment
+  labels:
+    app: trip-schedule-service
+spec:
+  replicas: 3 
+  selector:
+    matchLabels:
+      app: trip-schedule-service
+  template:
+    metadata:
+      labels:
+        app: trip-schedule-service
+    spec:
+      containers:
+      - name: trip-schedule-service-container
+        image: asia-southeast1-docker.pkg.dev/smartbusproject-480408/smartbus-repo/trip-schedule-service:v2.0.3
+        ports:
+        - containerPort: 3001 
+        
+        # BỎ HOÀN TOÀN envFrom
+        env:
+        # A. Ghi đè Biến Localhost bằng ConfigMap
+        - name: RABBITMQ_URL # Biến mà code đang tìm kiếm (ghi đè localhost:5672)
+          valueFrom:
+            configMapKeyRef:
+              name: smartbus-config
+              key: RABBITMQ_URL_PROD # Lấy giá trị Service Name đúng
+              
+        # B. Biến Nhạy cảm từ Secret
+        - name: MONGO_URI_ATLAS # Tên biến trong ứng dụng
+          valueFrom:
+            secretKeyRef:
+              name: trip-secret
+              key: MONGO_URI_ATLAS_SECRET # Key trong Secret
+
+        # C. Biến Logic và Cấu hình (Từ ConfigMap)
+        - name: NOTIFICATION_QUEUE
+          valueFrom:
+            configMapKeyRef:
+              name: smartbus-config
+              key: NOTIFICATION_QUEUE
+        - name: HISTORY_SEARCH_EXCHANGE
+          valueFrom:
+            configMapKeyRef:
+              name: smartbus-config
+              key: HISTORY_SEARCH_EXCHANGE
+        - name: HISTORY_SEARCH_ROUTING_KEY
+          valueFrom:
+            configMapKeyRef:
+              name: smartbus-config
+              key: HISTORY_SEARCH_ROUTING_KEY
+        - name: UPDATE_SEAT_EXCHANGE
+          valueFrom:
+            configMapKeyRef:
+              name: smartbus-config
+              key: UPDATE_SEAT_EXCHANGE
+        - name: TRIP_SERVICE_QUEUE
+          valueFrom:
+            configMapKeyRef:
+              name: smartbus-config
+              key: TRIP_SERVICE_QUEUE
+        - name: TRIP_SERVICE_ROUTING_KEY
+          valueFrom:
+            configMapKeyRef:
+              name: smartbus-config
+              key: TRIP_SERVICE_ROUTING_KEY
+        - name: GIAVE_API_URL
+          valueFrom:
+            configMapKeyRef:
+              name: smartbus-config
+              key: GIAVE_API_URL
+        - name: URL_BOOKING_SERVICE
+          valueFrom:
+            configMapKeyRef:
+              name: smartbus-config
+              key: URL_BOOKING_SERVICE
+              
+        # D. Biến Cố định (Gán trực tiếp)
+        - name: PORT
+          value: "3001"
+        - name: SERVICE_NAME
+          value: "TRIP-SERVICE"
+        - name: NODE_ENV
+          value: "production" 
+          
+---
+
+# --- SERVICE --- (ClusterIP: Chỉ nội bộ)
+apiVersion: v1
+kind: Service
+metadata:
+  name: trip-schedule-service
+spec:
+  selector:
+    app: trip-schedule-service
+  ports:
+  - protocol: TCP
+    port: 3001
+    targetPort: 3001
+  type: ClusterIP

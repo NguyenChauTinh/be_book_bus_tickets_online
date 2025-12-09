@@ -23,6 +23,18 @@ const khachHangSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: 'TaiKhoanKhachHang',
     },
+    soVeDaDat:{
+      type: Number,
+      default: 0
+    },
+     soVeDaHuy:{
+      type: Number,
+      default: 0
+    },
+    soTienDaThanhToan:{
+      type: Number,
+      default: 0
+    }
   },
   { timestamps: true }
 );

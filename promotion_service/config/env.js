@@ -1,6 +1,6 @@
 import { config } from "dotenv";
 
-config({ path: `.env.${process.env.NODE_ENV || "development"}.local` });
+config();
 
 export const {
   NODE_ENV,
@@ -13,7 +13,5 @@ export const {
   AWS_REGION,
   AWS_ACCESS_KEY_ID,
   PORT_AUTH_SERVICE,
-  EUREKA_HOST,
-  EUREKA_PORT,
   SERVICE_NAME,
 } = process.env;

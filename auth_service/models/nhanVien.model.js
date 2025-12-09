@@ -20,6 +20,16 @@ const nhanVienSchema = new Schema({
     trim: true,
     unique: true,
   },
+   email: {
+    type: String,
+    trim: true,
+    default: null
+  },
+  diaChi: {
+    type: String,
+    trim: true,
+    default: null
+  },
   namSinh: {
     type: Number,
     required: true,

@@ -1,7 +1,7 @@
 const PRIMARY_COLOR = "#0a6ebd";
 const TEXT_COLOR = "#333333";
 const BG_COLOR = "#f4f7fa";
-const LINK_TO_APP_HOMEPAGE = "https://smartbus.example.com";
+const LINK_TO_APP_HOMEPAGE = "https://nhaxe.smartbus.io.vn";
 
 export function getBookingSuccessTemplate(data) {
   const { bookingId, tripDetails, seats, totalPrice, userName, departureDate } =
@@ -205,6 +205,78 @@ export function getPaymentSuccessTemplate(data) {
                 </div>
                 <div class="footer">
                     &copy; 2024 Hệ thống Đặt vé xe Microservice.
+                </div>
+            </div>
+        </div>
+    </body>
+    </html>
+    `;
+}
+export function getOtpTemplate(data) {
+  const { userName, otp, actionName } = data;
+  const actionText = actionName || "xác thực tài khoản"; // Ví dụ: "đổi mật khẩu", "đăng nhập"
+
+  return `
+    <!DOCTYPE html>
+    <html lang="vi">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Mã xác thực OTP</title>
+        <style>
+            body { font-family: Arial, sans-serif; background-color: ${BG_COLOR}; margin: 0; padding: 0; }
+            .container { width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+            .header { background-color: ${PRIMARY_COLOR}; color: #ffffff; padding: 20px; text-align: center; }
+            .header h1 { margin: 0; font-size: 24px; }
+            .content { padding: 30px; color: ${TEXT_COLOR}; }
+            .content p { line-height: 1.6; margin-bottom: 15px; }
+            
+            /* Style riêng cho box chứa OTP */
+            .otp-box { 
+                background-color: #e8f4fd; 
+                border: 2px dashed ${PRIMARY_COLOR}; 
+                border-radius: 8px; 
+                padding: 15px; 
+                margin: 25px 0; 
+                text-align: center; 
+            }
+            .otp-code { 
+                font-size: 32px; 
+                font-weight: bold; 
+                color: ${PRIMARY_COLOR}; 
+                letter-spacing: 8px; 
+                display: block;
+            }
+            .expiry-text {
+                font-size: 13px;
+                color: #666;
+                margin-top: 10px;
+                font-style: italic;
+            }
+
+            .footer { text-align: center; padding: 20px; font-size: 12px; color: #888888; border-top: 1px solid #eeeeee; }
+        </style>
+    </head>
+    <body>
+        <div style="padding: 20px;">
+            <div class="container">
+                <div class="header">
+                    <h1>🔒 Mã xác thực OTP</h1>
+                </div>
+                <div class="content">
+                    <p>Xin chào <b>${userName || "Quý khách"}</b>,</p>
+                    <p>Bạn đang thực hiện yêu cầu <b>${actionText}</b> trên hệ thống SmartBus. Vui lòng sử dụng mã dưới đây để hoàn tất quá trình:</p>
+
+                    <div class="otp-box">
+                        <span class="otp-code">${otp}</span>
+                    </div>
+                    
+                    <p class="expiry-text" style="text-align: center;">Mã này có hiệu lực trong vòng 5 phút. Vui lòng không chia sẻ mã này cho bất kỳ ai, kể cả nhân viên hỗ trợ.</p>
+                    
+                    <p style="margin-top: 25px;">Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email này hoặc liên hệ ngay với chúng tôi để bảo vệ tài khoản.</p>
+                </div>
+                <div class="footer">
+                    &copy; 2024 Hệ thống Đặt vé xe SmartBus.
                 </div>
             </div>
         </div>

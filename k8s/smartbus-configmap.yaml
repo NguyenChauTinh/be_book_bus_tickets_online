@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: smartbus-config
+data:
+  # Sử dụng IP thực tế của Memorystore for Redis. Cổng mặc định là 6379.
+  REDIS_URL_PROD: "redis://10.53.26.4:6379" 
+  RABBITMQ_URL_PROD: "amqp://guest:guest@rabbitmq-service:5672" 
+  NOTIFICATION_EXCHANGE: "notification_events"
+  NOTIFICATION_QUEUE: "email_notification_queue"
+  SMTP_HOST: "smtp.gmail.com"
+  SMTP_PORT: "587"
+
+# AUTH SCHEDULE Service (Cổng: 3002)
+  URL_AUTH_SERVICE: "http://auth-service:3002"
+  OTP_EXPIRY_SECONDS: "300"
+  SESSION_EXPIRY_SECONDS: "86400"
+  HISTORY_SEARCH_EXCHANGE: "user_data_exchange"
+  SEARCH_HISTORY_QUEUE: "auth_search_history_queue"
+  HISTORY_SEARCH_ROUTING_KEY: "auth.search_history"
+  
+  # TRIP SCHEDULE Service (Cổng: 3001)
+  URL_TRIP_SERVICE: "http://trip-schedule-service:3001"
+  TRIP_API_URL: "http://trip-schedule-service:3001/api/v1"
+  GIAVE_API_URL: "http://trip-schedule-service:3001/api/v1/gia-ve/tim-gia-ve-ap-dung"
+  TUYEN_DUONG_API_URL: "http://trip-schedule-service:3001/api/v1/tuyen-duong/lay-tuyen-duong"
+  UPDATE_SEAT_EXCHANGE: "update_seat_exchange" 
+  TRIP_SERVICE_QUEUE: "trip_service_command_queue"
+  TRIP_SERVICE_ROUTING_KEY: "trip.update_seats"
+  # NOTIFICATION Service (Cổng: 3003)
+  URL_NOTIFICATION_SERVICE: "http://notification-service:3003"
+  
+  # PROMOTION Service (Cổng: 3004)
+  URL_PROMOTION_SERVICE: "http://promotion-service:3004"
+  PROMO_API_URL: "http://promotion-service:3004/api/v1"
+  
+  # BOOKING Service (Cổng: 3005)
+  URL_BOOKING_SERVICE: "http://booking-service:3005"
+  BOOKING_API_URL: "http://booking-service:3005/api/v1"
+  VNP_URL: "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
+  VNP_RETURN_URL: "https://api.smartbus.io.vn/api/v1/payment/vnpay_return"
+  VNP_IPN_URL: "https://api.smartbus.io.vn/api/v1/payment/vnpay_ipn"
+  FRONTEND_URL: "http://localhost:3000/payment-result"
+  UPDATE_SEAT_EXCHANGE: "update_seat_exchange"
+  TRIP_SERVICE_ROUTING_KEY: "trip.update_seats"
+  EMAIL_NOTIFICATION_QUEUE : "email_notification_queue"
+  # AI Service (Cổng: 3006)
+  URL_AI_SERVICE: "http://ai-service:3006"

@@ -71,7 +71,7 @@ export const taoNhanVien = async (req, res) => {
 export const capNhatNhanVien = async (req, res) => {
     try {
         const { id } = req.params;
-        const { tenNhanVien, soDienThoai, namSinh, loaiNhanVien } = req.body;
+        const { tenNhanVien, soDienThoai, namSinh, loaiNhanVien, email, diaChi } = req.body;
 
         const nhanVien = await NhanVien.findById(id);
         if (!nhanVien) {
@@ -93,7 +93,7 @@ export const capNhatNhanVien = async (req, res) => {
 
         const nhanVienCapNhat = await NhanVien.findByIdAndUpdate(
             id,
-            { tenNhanVien, soDienThoai, namSinh, loaiNhanVien: loaiNhanVien ? loaiNhanVien.toUpperCase() : undefined },
+            { tenNhanVien, soDienThoai, namSinh, loaiNhanVien: loaiNhanVien ? loaiNhanVien.toUpperCase() : undefined, email: email, diaChi: diaChi },
             { new: true, runValidators: true },
         );
 

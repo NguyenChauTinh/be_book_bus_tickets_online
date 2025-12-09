@@ -1,6 +1,6 @@
 import { config } from "dotenv";
 
-config({ path: `.env.${process.env.NODE_ENV || "development"}.local` });
+config();
 
 export const {
   NODE_ENV,
@@ -16,10 +16,11 @@ export const {
   OTP_EXPIRY_SECONDS,
   SESSION_EXPIRY_SECONDS,
   SERVICE_NAME,
-  EUREKA_HOST,
-  EUREKA_PORT,
   HISTORY_SEARCH_EXCHANGE,
   SEARCH_HISTORY_QUEUE,
   HISTORY_SEARCH_ROUTING_KEY,
-
+  SMTP_USER,
+  SMTP_PASS,
+  SMTP_HOST,
+  SMTP_PORT,
 } = process.env;

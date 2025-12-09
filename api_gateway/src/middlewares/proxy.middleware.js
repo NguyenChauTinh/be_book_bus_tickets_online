@@ -1,4 +1,3 @@
-// src/middlewares/proxy.js
 import { createProxyMiddleware } from "http-proxy-middleware";
 import serviceRoutes from "../config/services.map.js";
 
@@ -11,6 +10,10 @@ const setupProxies = (app) => {
         pathFilter: prefix,
         ws: true,
         logLevel: "debug",
+        timeout: 120000,
+        proxyTimeout: 120000,
+        changeOrigin: true,
+        selfHandleResponse: false,
         onProxyReq: (proxyReq, req, res) => {
           console.log(
             `[Proxy] ${req.method} ${req.originalUrl} -> ${target}${req.url}`

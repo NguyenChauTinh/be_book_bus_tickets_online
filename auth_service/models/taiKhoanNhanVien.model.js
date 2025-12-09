@@ -14,7 +14,7 @@ const taiKhoanSchema = new Schema(
     matKhau: {
       type: String,
       required: [true, "Mật khẩu không được để trống!"],
-      minlength: [6, "Mật khẩu phải có ít nhất 6 ký tự."],
+      minlength: [1, "Mật khẩu phải có ít nhất 1 ký tự."],
     },
     trangThai: {
       type: Boolean,
@@ -37,6 +37,11 @@ const taiKhoanSchema = new Schema(
       required: [true, "Đơn vị công tác không được để trống!"],
       trim: true,
     },
+    xacThuc:
+    {
+      type: String,
+      default: null
+    }
   },
   {
     timestamps: true,

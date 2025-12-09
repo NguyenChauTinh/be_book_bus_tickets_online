@@ -7,6 +7,14 @@ const ChiTietVeSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    ngayKhoiHanh: {
+      type: Date,
+      trim: true,
+    },
+    tuyenDuong: {
+      type: String,
+      trim: true,
+    },
     tenKhachHang: {
       type: String,
       required: true,

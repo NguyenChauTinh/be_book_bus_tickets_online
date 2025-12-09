@@ -1,6 +1,6 @@
 import { config } from "dotenv";
 
-config({ path: `.env.${process.env.NODE_ENV || "development"}.local` });
+config();
 
 export const {
   NODE_ENV,
@@ -24,9 +24,8 @@ export const {
   RABBITMQ_URL,
   NOTIFICATION_EXCHANGE,
   NOTIFICATION_QUEUE,
-  EUREKA_HOST,
-  EUREKA_PORT,
   SERVICE_NAME,
   UPDATE_SEAT_EXCHANGE,
-  TRIP_SERVICE_ROUTING_KEY
+  TRIP_SERVICE_ROUTING_KEY,
+  URL_AUTH_SERVICE
 } = process.env;

@@ -26,4 +26,5 @@ taiKhoanKHRouter.get(
   authMiddleware, 
   authController.getRecentSearches
 );
+taiKhoanKHRouter.post("/profiles/batch", authController.getProfilesByIds);
 export default taiKhoanKHRouter;

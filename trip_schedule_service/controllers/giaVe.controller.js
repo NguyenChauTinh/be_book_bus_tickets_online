@@ -292,7 +292,7 @@ export const timGiaVeApDung = async (req, res) => {
         .sort({ updatedAt: -1 });
 
         if (cacBangGiaPhuHop.length === 0) {
-            return res.status(404).json({ 
+            return res.status(200).json({ 
                 success: false, 
                 message: "Không tìm thấy giá vé phù hợp cho các tiêu chí đã chọn." 
             });

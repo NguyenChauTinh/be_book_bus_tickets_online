@@ -15,7 +15,6 @@ import paymentRouter from "./routes/payment.route.js";
 import notificationRouter from "./routes/notification.route.js";
 import baoCaoRouter from "./routes/baoCao.route.js";
 import { connectRabbitMQ } from "./utils/rabbitmq.helper.js";
-import { connectToEureka, disconnectEureka } from "./config/eureka.js";
 
 dotenv.config();
 
@@ -24,8 +23,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:3000", 
-    methods: ["GET", "POST"],
+    origin: true , 
     credentials: true 
   }
 });
@@ -57,7 +55,7 @@ io.on("connection", (client) => {
 
 // --- Middleware của Express ---
 app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.get('/info', (req, res) => {
     res.json({ status: 'UP' });
@@ -81,14 +79,12 @@ app.use("/api/v1/payment", paymentRouter);
 app.use("/api/v1/notifications", notificationRouter);
 app.use("/api/v1/bao-cao", baoCaoRouter);
 
-// app.use(errorMiddleware);
 
 
 const startServer = async () => {
   try {
     await connectToDatabase();
     await connectRabbitMQ();
-    connectToEureka();
     server.listen(PORT, () => {
       console.log(
         `Booking service (with Socket.IO) is running on port ${PORT}`
@@ -99,9 +95,5 @@ const startServer = async () => {
     process.exit(1);
   }
 };
-process.on('SIGINT', () => {
-    disconnectEureka();
-    process.exit();
-});
 
 startServer();

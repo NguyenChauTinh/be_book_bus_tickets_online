@@ -1,0 +1,104 @@
+# --- DEPLOYMENT AUTH SERVICE ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service-deployment
+  labels:
+    app: auth-service
+spec:
+  replicas: 3 
+  selector:
+    matchLabels:
+      app: auth-service
+  template:
+    metadata:
+      labels:
+        app: auth-service
+    spec:
+      containers:
+      - name: auth-service-container
+        image: asia-southeast1-docker.pkg.dev/smartbusproject-480408/smartbus-repo/auth-service:v3.0.3
+        ports:
+        - containerPort: 3002 
+        
+        # BỎ HOÀN TOÀN envFrom
+        env:
+        # A. Ghi đè Biến Localhost bằng ConfigMap
+        - name: REDIS_URL # Biến mà code đang tìm kiếm (ghi đè localhost:6379)
+          valueFrom:
+            configMapKeyRef:
+              name: smartbus-config
+              key: REDIS_URL_PROD 
+        - name: RABBITMQ_URL # Biến mà code đang tìm kiếm (ghi đè localhost:5672)
+          valueFrom:
+            configMapKeyRef:
+              name: smartbus-config
+              key: RABBITMQ_URL_PROD
+              
+        # B. Biến Nhạy cảm từ Secret
+        - name: DB_URI # Biến trong ứng dụng (tên Secret key là DB_URI_SECRET)
+          valueFrom:
+            secretKeyRef:
+              name: auth-secret
+              key: DB_URI_SECRET
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: auth-secret
+              key: JWT_SECRET
+        - name: JWT_REFRESH_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: auth-secret
+              key: JWT_REFRESH_SECRET
+
+        # C. Biến Logic và Cấu hình (Từ ConfigMap)
+        - name: OTP_EXPIRY_SECONDS
+          valueFrom:
+            configMapKeyRef:
+              name: smartbus-config
+              key: OTP_EXPIRY_SECONDS
+        - name: SESSION_EXPIRY_SECONDS
+          valueFrom:
+            configMapKeyRef:
+              name: smartbus-config
+              key: SESSION_EXPIRY_SECONDS
+        - name: HISTORY_SEARCH_EXCHANGE
+          valueFrom:
+            configMapKeyRef:
+              name: smartbus-config
+              key: HISTORY_SEARCH_EXCHANGE
+        - name: SEARCH_HISTORY_QUEUE
+          valueFrom:
+            configMapKeyRef:
+              name: smartbus-config
+              key: SEARCH_HISTORY_QUEUE
+        - name: HISTORY_SEARCH_ROUTING_KEY
+          valueFrom:
+            configMapKeyRef:
+              name: smartbus-config
+              key: HISTORY_SEARCH_ROUTING_KEY
+              
+        # D. Biến Cố định (Gán trực tiếp)
+        - name: PORT
+          value: "3002"
+        - name: SERVICE_NAME
+          value: "AUTH-SERVICE"
+        - name: NODE_ENV
+          value: "production" 
+          
+---
+
+# --- SERVICE --- (ClusterIP: Chỉ nội bộ)
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-service
+spec:
+  selector:
+    app: auth-service
+  ports:
+  - protocol: TCP
+    port: 3002
+    targetPort: 3002
+  type: ClusterIP

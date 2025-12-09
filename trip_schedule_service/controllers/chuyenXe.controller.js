@@ -1,5 +1,7 @@
 import ChuyenXe from "../models/chuyenXe.model.js";
 import axios from "axios";
+
+import {URL_BOOKING_SERVICE, GIAVE_API_URL} from "../config/env.js";
 import { publishSearchHistoryEvent } from "../utils/rabbitmq.helper.js";
 import DiaDiem from "../models/diaDiem.model.js";
 import { getTuyenDuongByIdInternal } from "./tuyenDuong.controller.js";
@@ -63,7 +65,7 @@ export const getDanhSachChuyenXeTheoNgay = async (req, res) => {
     // Bước 1: Lấy danh sách chuyến xe gốc
     const trips = await ChuyenXe.find({
       ngayKhoiHanh: { $gte: startOfDay, $lte: endOfDay },
-    })
+    }).populate("loaiXe")
       .sort({ gioKhoiHanh: 1 })
       .lean();
 
@@ -78,7 +80,7 @@ export const getDanhSachChuyenXeTheoNgay = async (req, res) => {
     try {
       // Bước 3: Gọi API đến service vé xe để lấy số lượng vé
       const response = await axios.post(
-        "http://localhost:3005/api/v1/ve-xe/thong-ke/so-luong-theo-chuyen",
+        `${URL_BOOKING_SERVICE}/api/v1/ve-xe/thong-ke/so-luong-theo-chuyen`,
         {
           chuyenXeIds: tripIds,
         }
@@ -242,18 +244,11 @@ export const getDanhSachChuyenXeFilter = async (req, res) => {
   }
 };
 
-const GIAVE_API_URL = "http://localhost:3001/api/v1/gia-ve/tim-gia-ve-ap-dung";
 
 export const getDanhSachChuyenXeTheoNgayVaDiaDiem = async (req, res) => {
   try {
     const userId = req.headers["x-user-id"];
-    console.log("User ID từ header:", userId);
     const { ngayKhoiHanh, diemDiId, diemDenId } = req.query;
-    console.log("Tham số truy vấn nhận được:", {
-      ngayKhoiHanh,
-      diemDiId,
-      diemDenId,
-    });
 
     if (!ngayKhoiHanh) {
       return res
@@ -417,6 +412,7 @@ export const getDanhSachChuyenXeTheoNgayVaDiaDiem = async (req, res) => {
         seatsLeft,
       };
     });
+    console.log("Final result: ", formattedBusTrips);
     res.status(200).json({
       success: true,
       message: "Lấy danh sách chuyến xe thành công.",

@@ -1,9 +1,12 @@
 import axios from "axios";
-
-const TRIP_API_URL = "http://localhost:3001/api/v1";
-const PROMO_API_URL = "http://localhost:3004/api/v1";
-const BOOKING_API_URL = "http://localhost:3005/api/v1";
-
+import { TRIP_API_URL, PROMO_API_URL, BOOKING_API_URL, GIAVE_API_URL, TUYEN_DUONG_API_URL, API_GEMINI_URL } from "./config/env.js";
+// const TRIP_API_URL = "http://localhost:3001/api/v1";
+// const PROMO_API_URL = "http://localhost:3004/api/v1";
+// const BOOKING_API_URL = "http://localhost:3005/api/v1";
+// const API_GEMINI_KEY = "AIzaSyAaKOXhDKTGKFDH0GvfzEkwR5tabN7Vs14";
+// const API_GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_GEMINI_KEY}`;
+// const GIAVE_API_URL = "http://localhost:3001/api/v1/gia-ve/tim-gia-ve-ap-dung";
+// const TUYEN_DUONG_API_URL = "http://localhost:3001/api/v1/tuyen-duong/lay-tuyen-duong";
 const formatMinutesToHHMM = (totalMinutes) => {
   if (isNaN(totalMinutes)) return "00:00";
   const hours = Math.floor(totalMinutes / 60);
@@ -18,9 +21,7 @@ const parseHHMMToMinutes = (timeString) => {
   return hours * 60 + minutes;
 };
 
-const GIAVE_API_URL = "http://localhost:3001/api/v1/gia-ve/tim-gia-ve-ap-dung";
-const TUYEN_DUONG_API_URL =
-  "http://localhost:3001/api/v1/tuyen-duong/lay-tuyen-duong";
+
 
 // --- Hàm callYourTripAPI (Đã cập nhật) ---
 const callYourTripAPI = async (departure, destination, date) => {
@@ -354,7 +355,8 @@ const callYourBookingAPI = async (
   pickupPointName,
   dropoffPointName,
   paymentMethod,
-  promoCode
+  promoCode,
+  currentUserId
 ) => {
   console.log(
     `[AI DEBUG] 4. BẮT ĐẦU: callYourBookingAPI (Đặt vé thật)
@@ -364,7 +366,8 @@ const callYourBookingAPI = async (
     Đón: ${pickupPointName},
     Trả: ${dropoffPointName},
     Thanh toán: ${paymentMethod},
-    Mã KM: ${promoCode || "Không có"}`
+    Mã KM: ${promoCode || "Không có"}
+    User ID (Header): ${currentUserId || "N/A"}`
   );
 
   try {
@@ -523,7 +526,7 @@ const callYourBookingAPI = async (
       maGiamGia: selectedPromoLine ? selectedPromoLine.campaignId : null,
       hinhThucThanhToan: null,
       nhanVienTao: "690471e2292bcd0f56f104e8",
-      userId: "60c72b2f5f1b2c001f6e8d9e",
+      userId: currentUserId || null,
     };
 
     const { data: response } = await axios.post(
@@ -699,9 +702,7 @@ const callYourPriceCalculationAPI = async (tripId, seatIds, promoCode) => {
   }
 };
 
-// (Cấu hình API_KEY và API_URL giữ nguyên)
-const API_KEY = "AIzaSyAaKOXhDKTGKFDH0GvfzEkwR5tabN7Vs14";
-const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`;
+
 
 const systemPrompt = `
   Bạn là trợ lý AI chính thức của Nhà xe Việt Tân Phát.
@@ -1030,11 +1031,11 @@ const tools = [
   },
 ];
 
-async function processMessage(userInput, chatHistory) {
+async function processMessage(userInput, chatHistory, userId) {
   chatHistory.push({ role: "user", parts: [{ text: userInput }] });
 
   try {
-    const result = await run(chatHistory);
+    const result = await run(chatHistory, userId);
     return result;
   } catch (error) {
     console.error("Lỗi nghiêm trọng trong processMessage:", error);
@@ -1046,7 +1047,7 @@ async function processMessage(userInput, chatHistory) {
   }
 }
 
-async function run(history) {
+async function run(history, userId) {
   const payload = {
     contents: history,
     systemInstruction: {
@@ -1055,7 +1056,7 @@ async function run(history) {
     tools: tools,
   };
 
-  const response = await axios.post(API_URL, payload, {
+  const response = await axios.post(API_GEMINI_URL, payload, {
     headers: { "Content-Type": "application/json" },
   });
 
@@ -1110,7 +1111,8 @@ async function run(history) {
         args.pickupPointName,
         args.dropoffPointName,
         args.paymentMethod,
-        args.promoCode
+        args.promoCode,
+        userId
       );
     } else {
       console.warn(`[AI DEBUG] Tool không xác định: ${functionName}`);

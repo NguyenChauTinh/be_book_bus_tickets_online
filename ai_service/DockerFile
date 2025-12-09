@@ -1,21 +1,14 @@
-# Sử dụng Image cơ sở (Base Image) phù hợp với ngôn ngữ của bạn
-# Ví dụ: node:20-alpine cho Node.js
+
 FROM node:20-alpine
 
-# Thiết lập thư mục làm việc bên trong container
 WORKDIR /app
 
-# Sao chép file package.json và package-lock.json để cài đặt dependencies
 COPY package*.json ./
 
-# Cài đặt dependencies
-RUN npm install
+RUN npm install --only=production
 
-# Sao chép toàn bộ code của ứng dụng vào thư mục làm việc
 COPY . .
 
-# Mở cổng (port) mà ứng dụng lắng nghe
-EXPOSE 3000
+EXPOSE 3006
 
-# Lệnh mặc định để chạy ứng dụng khi container khởi động
-CMD [ "npm", "start" ]
+CMD ["node", "server.js"]

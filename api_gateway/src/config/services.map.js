@@ -1,6 +1,8 @@
 import env from './env.js';
 
 const serviceRoutes = [
+    { prefix: '/socket.io', target: env.SERVICES.BOOKING },
+
     // --- Auth Service ---
     { prefix: '/api/v1/nhan-vien', target: env.SERVICES.AUTH },
     { prefix: '/api/v1/tai-khoan', target: env.SERVICES.AUTH },
@@ -34,7 +36,6 @@ const serviceRoutes = [
     // --- AI Service ---
     { prefix: '/api/v1/chat', target: env.SERVICES.AI },
     //Socket IO
-    { prefix: '/socket.io', target: env.SERVICES.BOOKING },
 ];
 
 export default serviceRoutes;

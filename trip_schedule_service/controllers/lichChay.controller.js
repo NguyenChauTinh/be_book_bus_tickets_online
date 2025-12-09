@@ -46,21 +46,21 @@ const processLichChayBody = (body) => {
   return body;
 };
 
-const generateMaChuyenXe = (tuyenDuong, date, gioKhoiHanhPhut) => {
+const generateMaChuyenXe = (maTuyenDuong, date, gioKhoiHanhPhut) => {
   const day = String(date.getDate()).padStart(2, "0");
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const year = String(date.getFullYear()).slice(-2);
   const time = minutesToHHMM(gioKhoiHanhPhut);
-  return `${tuyenDuong}${day}${month}${year}${time}`;
+  return `${maTuyenDuong}${day}${month}${year}${time}`;
 };
 
 const createChuyenXeHangLoat = async (
   masterSchedule,
-  linesToProcess = masterSchedule.lines
+  linesToProcess = masterSchedule.lines,
+  maTuyenDuong
 ) => {
   const startDate = new Date(masterSchedule.ngayBatDau);
   const endDate = new Date(masterSchedule.ngayKetThuc);
-
   const dateIterator = new Date(
     Date.UTC(
       startDate.getUTCFullYear(),
@@ -82,13 +82,12 @@ const createChuyenXeHangLoat = async (
     for (const line of linesToProcess) {
       if (line.active && isFrequencyMatch(line.tanSuat, dateIterator)) {
         const tripCode = generateMaChuyenXe(
-          masterSchedule.tuyenDuong,
+          maTuyenDuong,
           dateIterator,
           line.gioKhoiHanh
         );
         const existingTrip = await ChuyenXe.findOne({ maChuyenXe: tripCode });
         if (!existingTrip) {
-          console.log("Giá trị soLuongGhe trong Line:", line.soLuongVe);
           const newTrip = {
             maChuyenXe: tripCode,
             maLichChay: masterSchedule.maLichChay,
@@ -142,7 +141,7 @@ export const createLichChayMoi = async (req, res) => {
     const processedBody = processLichChayBody(req.body);
     const newSchedule = new LichChayMaster(processedBody);
     const savedSchedule = await newSchedule.save();
-    await createChuyenXeHangLoat(savedSchedule);
+    await createChuyenXeHangLoat(savedSchedule, savedSchedule.lines, processedBody.tuyenDuong.maTuyen );
 
     res.status(201).json({
       message: "Tạo lịch chạy thành công và đã sinh chuyến xe.",
@@ -197,7 +196,7 @@ export const updateLichChay = async (req, res) => {
 
     if (linesToCreate.length > 0) {
       // Truyền updatedSchedule đầy đủ để hàm có context (như tuyenDuong, ngayBatDau...)
-      await createChuyenXeHangLoat(updatedSchedule, linesToCreate);
+      await createChuyenXeHangLoat(updatedSchedule, linesToCreate, updatedSchedule.tuyenDuong.maTuyen);
     }
 
     let totalModifiedTrips = 0;
@@ -216,7 +215,7 @@ export const updateLichChay = async (req, res) => {
           $set: {
             loaiDichVu: line.loaiDichVu,
             ghiChu: `[Cập nhật Line] ${line.ghiChu || ""}`,
-            laiXe: line.laiXe, // Cập nhật cả lái xe và phụ xe
+            laiXe: line.laiXe, 
             phuXe: line.phuXe,
           },
         }

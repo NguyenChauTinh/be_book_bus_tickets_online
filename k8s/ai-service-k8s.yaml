@@ -1,0 +1,39 @@
+# --- DEPLOYMENT ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-service-deployment
+  labels:
+    app: ai-service
+spec:
+  replicas: 3 
+  selector:
+    matchLabels:
+      app: ai-service
+  template:
+    metadata:
+      labels:
+        app: ai-service
+    spec:
+      containers:
+      - name: ai-service-container
+        image: asia-southeast1-docker.pkg.dev/smartbusproject-480408/smartbus-repo/ai-service:v2.0.3
+        ports:
+        - containerPort: 3006 
+        envFrom:
+        - configMapRef:
+            name: smartbus-config 
+---
+# --- SERVICE --- (ClusterIP: Chỉ nội bộ)
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-service
+spec:
+  selector:
+    app: ai-service
+  ports:
+  - protocol: TCP
+    port: 3006
+    targetPort: 3006
+  type: ClusterIP

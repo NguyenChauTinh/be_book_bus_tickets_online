@@ -107,7 +107,6 @@ export const dangNhap = async (req, res) => {
       });
     }
 
-
     const token = signToken(
       taiKhoan._id,
       taiKhoan.tenTaiKhoan,
@@ -115,17 +114,17 @@ export const dangNhap = async (req, res) => {
     );
     const refreshToken = signRefreshToken(taiKhoan._id);
 
-     const sessionKey = `session:${taiKhoan._id}`;
-    
-        await redisClient.set(sessionKey, "active", {
-          EX: SESSION_EXPIRY_SECONDS,
-        });
+    const sessionKey = `session:${taiKhoan._id}`;
 
-    res.cookie('refreshToken', refreshToken, {
-        httpOnly: true,  
-        secure: process.env.NODE_ENV === 'production' ? true : false,
-        sameSite: 'strict',
-        maxAge: 7 * 24 * 60 * 60 * 1000 
+    await redisClient.set(sessionKey, "active", {
+      EX: SESSION_EXPIRY_SECONDS,
+    });
+
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production" ? true : false,
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     res.status(200).json({
@@ -145,11 +144,66 @@ export const dangNhap = async (req, res) => {
     });
   }
 };
+export const doiMatKhau = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { matKhauHienTai, matKhauMoi } = req.body;
 
+    const taiKhoan = await TaiKhoan.findById(id).select("+matKhau"); // Đảm bảo lấy trường mật khẩu
+
+    if (!taiKhoan) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy tài khoản.",
+      });
+    }
+
+    if (!matKhauHienTai) {
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng cung cấp mật khẩu hiện tại.",
+      });
+    }
+
+    const matKhauChinhXac = await bcrypt.compare(
+      matKhauHienTai,
+      taiKhoan.matKhau
+    );
+
+    if (!matKhauChinhXac) {
+      return res.status(401).json({
+        success: false,
+        message: "Mật khẩu hiện tại không chính xác.",
+      });
+    }
+
+    if (!matKhauMoi) {
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng cung cấp mật khẩu mới.",
+      });
+    }
+
+    taiKhoan.matKhau = matKhauMoi;
+
+    await taiKhoan.save(); // Lưu và tự động hash mật khẩu mới
+
+    res.status(200).json({
+      success: true,
+      message: "Đổi mật khẩu thành công!",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi đổi mật khẩu.",
+      error: error.message,
+    });
+  }
+};
 export const chinhSuaTaiKhoan = async (req, res) => {
   try {
     const { id } = req.params;
-    const { tenTaiKhoan, matKhau, trangThai, vaiTro, donViCongTac } = req.body;
+    const { tenTaiKhoan, trangThai, vaiTro, donViCongTac, xacThuc } = req.body;
 
     const taiKhoan = await TaiKhoan.findById(id);
 
@@ -170,11 +224,9 @@ export const chinhSuaTaiKhoan = async (req, res) => {
       }
       taiKhoan.tenTaiKhoan = tenTaiKhoan;
     }
-
-    if (matKhau) {
-      taiKhoan.matKhau = matKhau;
+    if (xacThuc !== undefined) {
+      taiKhoan.xacThuc = xacThuc;
     }
-
     if (vaiTro !== undefined) {
       taiKhoan.vaiTro = vaiTro;
     }
@@ -285,7 +337,7 @@ export const layDanhSachTaiKhoanPhongVe = async (req, res) => {
 // export const refreshToken = async (req, res) => {
 //   try {
 //     const { refreshToken } = req.body;
-    
+
 //     if (!refreshToken) {
 //       return res.status(401).json({
 //         success: false,
@@ -333,44 +385,48 @@ export const layDanhSachTaiKhoanPhongVe = async (req, res) => {
 // };
 
 export const refreshToken = async (req, res) => {
-    try {
-        // 1. Lấy Refresh Token từ Cookie (HttpOnly)
-        const cookies = req.cookies;
-        
-        if (!cookies || !cookies.refreshToken) {
-            return res.status(401).json({ 
-                success: false, 
-                message: "Bạn chưa đăng nhập hoặc phiên đã hết hạn (Không tìm thấy Refresh Token)." 
-            });
-        }
+  try {
+    // 1. Lấy Refresh Token từ Cookie (HttpOnly)
+    const cookies = req.cookies;
 
-        const refreshToken = cookies.refreshToken;
+    if (!cookies || !cookies.refreshToken) {
+      return res.status(401).json({
+        success: false,
+        message:
+          "Bạn chưa đăng nhập hoặc phiên đã hết hạn (Không tìm thấy Refresh Token).",
+      });
+    }
 
-        const decoded = jwt.verify(refreshToken, JWT_REFRESH_SECRET);
+    const refreshToken = cookies.refreshToken;
 
-        // Đảm bảo user chưa logout hoặc chưa bị cấm
-        const userId = decoded.userId;
-        const sessionKey = `session:${userId}`;
-        const sessionExists = await redisClient.get(sessionKey);
+    const decoded = jwt.verify(refreshToken, JWT_REFRESH_SECRET);
 
-        if (!sessionExists) {
-            // Nếu Redis không còn key -> User đã logout -> Xóa cookie luôn
-            res.clearCookie('refreshToken', { httpOnly: true, sameSite: 'strict', secure: true });
-            return res.status(403).json({ 
-                success: false, 
-                message: "Phiên đăng nhập không hợp lệ hoặc đã kết thúc." 
-            });
-        }
+    // Đảm bảo user chưa logout hoặc chưa bị cấm
+    const userId = decoded.userId;
+    const sessionKey = `session:${userId}`;
+    const sessionExists = await redisClient.get(sessionKey);
 
-        const newAccessToken = jwt.sign(
-            { userId: userId }, 
-            JWT_SECRET, 
-            { expiresIn: JWT_EXPIRES_IN } 
-        );
+    if (!sessionExists) {
+      // Nếu Redis không còn key -> User đã logout -> Xóa cookie luôn
+      res.clearCookie("refreshToken", {
+        httpOnly: true,
+        sameSite: "None",
+        secure: true,
+        path: "/",
+      });
+      return res.status(403).json({
+        success: false,
+        message: "Phiên đăng nhập không hợp lệ hoặc đã kết thúc.",
+      });
+    }
 
-        // 5. (Tùy chọn nâng cao) Token Rotation: Đổi luôn cả Refresh Token mới
-        // Giúp bảo mật hơn: Nếu refresh token cũ bị lộ, nó chỉ dùng được 1 lần
-        /*
+    const newAccessToken = jwt.sign({ userId: userId }, JWT_SECRET, {
+      expiresIn: JWT_EXPIRES_IN,
+    });
+
+    // 5. (Tùy chọn nâng cao) Token Rotation: Đổi luôn cả Refresh Token mới
+    // Giúp bảo mật hơn: Nếu refresh token cũ bị lộ, nó chỉ dùng được 1 lần
+    /*
         const newRefreshToken = jwt.sign(
             { userId: userId }, 
             process.env.REFRESH_TOKEN_SECRET, 
@@ -385,7 +441,7 @@ export const refreshToken = async (req, res) => {
             maxAge: 7 * 24 * 60 * 60 * 1000 // 7 ngày
         });
         */
-        const taiKhoan = await TaiKhoan.findById(userId).populate([
+    const taiKhoan = await TaiKhoan.findById(userId).populate([
       { path: "nhanVien" },
       {
         path: "vaiTro",
@@ -396,18 +452,28 @@ export const refreshToken = async (req, res) => {
       },
     ]);
 
-        res.status(200).json({
-            success: true,
-            accessToken:  newAccessToken,
-            taiKhoan: taiKhoan,
-        });
+    res.status(200).json({
+      success: true,
+      accessToken: newAccessToken,
+      taiKhoan: taiKhoan,
+    });
+  } catch (error) {
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      sameSite: "strict",
+      secure: true,
+    });
 
-    } catch (error) {
-        res.clearCookie('refreshToken', { httpOnly: true, sameSite: 'strict', secure: true });
-        
-        if (error.name === 'TokenExpiredError') {
-            return res.status(403).json({ success: false, message: "Refresh Token đã hết hạn. Vui lòng đăng nhập lại." });
-        }
-        return res.status(403).json({ success: false, message: "Refresh Token không hợp lệ." });
+    if (error.name === "TokenExpiredError") {
+      return res
+        .status(403)
+        .json({
+          success: false,
+          message: "Refresh Token đã hết hạn. Vui lòng đăng nhập lại.",
+        });
     }
+    return res
+      .status(403)
+      .json({ success: false, message: "Refresh Token không hợp lệ." });
+  }
 };

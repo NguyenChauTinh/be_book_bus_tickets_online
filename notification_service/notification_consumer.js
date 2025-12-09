@@ -38,15 +38,33 @@ function sendNotification(notificationData) {
 
     if (type === 'TICKET_BOOKED_SUCCESSFULLY') {
         subject = `[Xác nhận] Vé xe #${payload.bookingId} đã được đặt thành công`;
+        
+        let formattedDate = 'N/A';
+        let formattedTime = 'N/A';
+
+        const rawTime = payload.tripDetails.departureTime;
+        const isDateObject = !isNaN(new Date(rawTime).getTime());
+
+        if (isDateObject) {
+            const dateObj = new Date(rawTime);
+            formattedDate = dateObj.toLocaleDateString('vi-VN');
+            formattedTime = dateObj.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+        } else {
+            formattedDate = rawTime;
+            formattedTime = rawTime; 
+        }
+
         emailBody = getBookingSuccessTemplate({ 
             ...payload, 
             userName: payload.userName || 'Khách hàng',
             totalPrice: payload.totalPrice || 0,
             seats: payload.seats || [],
-            departureDate: payload.tripDetails.departureTime ? new Date(payload.tripDetails.departureTime).toLocaleDateString('vi-VN') : 'N/A',
+            departureDate: formattedDate,
             tripDetails: {
+                ...payload.tripDetails,
                 route: payload.tripDetails.route || 'N/A',
-                departureTime: payload.tripDetails.departureTime ? new Date(payload.tripDetails.departureTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : 'N/A'
+                departureTime: formattedTime,
+                selectedPickup: payload.tripDetails.selectedPickup || { name: 'Điểm đón chưa xác định' } 
             }
         });
 
@@ -93,18 +111,14 @@ function sendNotification(notificationData) {
 export async function setupConsumer() {
     let connection;
     try {
-        //1. Kết nối tới RabbitMQ
         connection = await amqp.connect(RABBITMQ_URL);
         const channel = await connection.createChannel();
 
-        //2. Thiết lập Exchange và Queue
         await channel.assertExchange(NOTIFICATION_EXCHANGE, 'fanout', { durable: true });
 
-        //3. Ràng buộc Queue với Exchange bằng binding key rỗng
         const q = await channel.assertQueue(NOTIFICATION_QUEUE, { durable: true });
         await channel.bindQueue(q.queue, NOTIFICATION_EXCHANGE, '');
 
-        // 4. Thiết lập Consumer (Lắng nghe tin nhắn)
         channel.consume(q.queue, (msg) => {
             if (msg !== null) {
                 try {

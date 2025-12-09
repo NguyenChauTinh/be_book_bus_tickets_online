@@ -1,0 +1,95 @@
+# --- DEPLOYMENT ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service-deployment
+  labels:
+    app: notification-service
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: notification-service
+  template:
+    metadata:
+      labels:
+        app: notification-service
+    spec:
+      containers:
+      - name: notification-service-container
+        # Thay thế [PROJECT_ID] nếu cần
+        image: asia-southeast1-docker.pkg.dev/smartbusproject-480408/smartbus-repo/notification-service:v2.0.3
+        ports:
+        - containerPort: 3003
+        
+        # SỬ DỤNG TRƯỜNG 'env:' (environment) ĐỂ KHAI BÁO TẤT CẢ BIẾN
+        env:
+        - name: SMTP_USER
+          valueFrom:
+            secretKeyRef:
+              name: notification-secret
+              key: SMTP_USER_SECRET
+        - name: SMTP_PASS
+          valueFrom:
+            secretKeyRef:
+              name: notification-secret
+              key: SMTP_PASS_SECRET
+
+        # B. Biến Lỗi và Logic (Từ ConfigMap)
+        # Ghi đè REDIS_URL/RABBITMQ_URL (Khắc phục lỗi localhost)
+        - name: REDIS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: smartbus-config
+              key: REDIS_URL_PROD 
+        - name: RABBITMQ_URL
+          valueFrom:
+            configMapKeyRef:
+              name: smartbus-config
+              key: RABBITMQ_URL_PROD
+        
+        # Các biến logic và SMTP Host/Port (Từ ConfigMap)
+        - name: NOTIFICATION_EXCHANGE
+          valueFrom:
+            configMapKeyRef:
+              name: smartbus-config
+              key: NOTIFICATION_EXCHANGE
+        - name: NOTIFICATION_QUEUE
+          valueFrom:
+            configMapKeyRef:
+              name: smartbus-config
+              key: NOTIFICATION_QUEUE
+        - name: SMTP_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: smartbus-config
+              key: SMTP_HOST
+        - name: SMTP_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: smartbus-config
+              key: SMTP_PORT
+        
+        # C. Biến Cố định (Gán trực tiếp)
+        - name: PORT
+          value: "3003"
+        - name: SERVICE_NAME
+          value: "NOTIFICATION-SERVICE"
+        - name: NODE_ENV
+          value: "production"
+          
+---
+
+# --- SERVICE --- (ClusterIP: Chỉ nội bộ)
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+spec:
+  selector:
+    app: notification-service
+  ports:
+  - protocol: TCP
+    port: 3003
+    targetPort: 3003
+  type: ClusterIP

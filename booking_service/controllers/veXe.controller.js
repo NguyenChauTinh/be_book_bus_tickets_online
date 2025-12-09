@@ -146,6 +146,8 @@ export const createTicket = async (req, res) => {
       userId,
       email,
       route,
+      routeId,
+      ngayKhoiHanh,
       departureDate,
       selectedPickup,
     } = req.body;
@@ -158,11 +160,6 @@ export const createTicket = async (req, res) => {
       });
     }
 
-    const chiTietWithCreator = chiTiet.map((detail) => ({
-      ...detail,
-      nhanVienTao: nhanVienTao || null,
-    }));
-
     const newTicket = new VeXe({
       maVe: generateMaVe(),
       maGiamGia: maGiamGia || null,
@@ -171,6 +168,8 @@ export const createTicket = async (req, res) => {
         ...detail,
         nhanVienTao: nhanVienTao || null,
         maGiamGia: maGiamGia || null,
+        ngayKhoiHanh:  detail.ngayKhoiHanh || ngayKhoiHanh,
+        tuyenDuong: detail.tuyenDuong || routeId,
       })),
     });
     const paidDetails = newTicket.chiTiet.filter((ct) => ct.hinhThucThanhToan);
@@ -251,9 +250,9 @@ export const createTicket = async (req, res) => {
       if (userId) {
         publishEvent(
           "TICKET_BOOKED_SUCCESSFULLY",
-          eventPayload, 
+          eventPayload,
           email || null,
-          firstDetail.soDienThoai || null 
+          firstDetail.soDienThoai || null
         );
       }
     } catch (rabbitmqError) {
@@ -316,7 +315,6 @@ export const searchTickets = async (req, res) => {
   try {
     const { query } = req.query;
 
-    // ✅ Chỉ cần không rỗng là được
     if (!query || query.trim().length === 0) {
       return res.status(400).json({
         success: false,
