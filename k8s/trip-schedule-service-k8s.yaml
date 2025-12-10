@@ -6,7 +6,7 @@ metadata:
   labels:
     app: trip-schedule-service
 spec:
-  replicas: 3 
+  replicas: 1 
   selector:
     matchLabels:
       app: trip-schedule-service
@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: trip-schedule-service-container
-        image: asia-southeast1-docker.pkg.dev/smartbusproject-480408/smartbus-repo/trip-schedule-service:v2.0.3
+        image: asia-southeast1-docker.pkg.dev/smartbusproject-480408/smartbus-repo/trip-schedule-service:v4.0.1
         ports:
         - containerPort: 3001 
         

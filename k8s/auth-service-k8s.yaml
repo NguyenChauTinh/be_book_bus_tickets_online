@@ -6,7 +6,7 @@ metadata:
   labels:
     app: auth-service
 spec:
-  replicas: 3 
+  replicas: 1 
   selector:
     matchLabels:
       app: auth-service
@@ -17,24 +17,23 @@ spec:
     spec:
       containers:
       - name: auth-service-container
-        image: asia-southeast1-docker.pkg.dev/smartbusproject-480408/smartbus-repo/auth-service:v3.0.3
+        image: asia-southeast1-docker.pkg.dev/smartbusproject-480408/smartbus-repo/auth-service:v4.0.4
         ports:
         - containerPort: 3002 
         
         # BỎ HOÀN TOÀN envFrom
         env:
+        - name: RABBITMQ_URL # Biến mà code đang tìm kiếm (ghi đè localhost:5672)
+          valueFrom:
+            configMapKeyRef:
+              name: smartbus-config
+              key: RABBITMQ_URL_PROD
         # A. Ghi đè Biến Localhost bằng ConfigMap
         - name: REDIS_URL # Biến mà code đang tìm kiếm (ghi đè localhost:6379)
           valueFrom:
             configMapKeyRef:
               name: smartbus-config
               key: REDIS_URL_PROD 
-        - name: RABBITMQ_URL # Biến mà code đang tìm kiếm (ghi đè localhost:5672)
-          valueFrom:
-            configMapKeyRef:
-              name: smartbus-config
-              key: RABBITMQ_URL_PROD
-              
         # B. Biến Nhạy cảm từ Secret
         - name: DB_URI # Biến trong ứng dụng (tên Secret key là DB_URI_SECRET)
           valueFrom:
@@ -51,6 +50,17 @@ spec:
             secretKeyRef:
               name: auth-secret
               key: JWT_REFRESH_SECRET
+        env:
+        - name: SMTP_USER
+          valueFrom:
+            secretKeyRef:
+              name: auth-secret
+              key: SMTP_USER_SECRET
+        - name: SMTP_PASS
+          valueFrom:
+            secretKeyRef:
+              name: auth-secret
+              key: SMTP_PASS_SECRET
 
         # C. Biến Logic và Cấu hình (Từ ConfigMap)
         - name: OTP_EXPIRY_SECONDS
@@ -78,6 +88,16 @@ spec:
             configMapKeyRef:
               name: smartbus-config
               key: HISTORY_SEARCH_ROUTING_KEY
+        - name: SMTP_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: smartbus-config
+              key: SMTP_HOST
+        - name: SMTP_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: smartbus-config
+              key: SMTP_PORT
               
         # D. Biến Cố định (Gán trực tiếp)
         - name: PORT

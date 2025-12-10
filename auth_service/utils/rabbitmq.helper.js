@@ -45,7 +45,6 @@ export function publishEvent(eventType, payload, email, phone) {
     console.error("Lỗi: Không có kết nối RabbitMQ. Không thể gửi sự kiện.");
     return false;
   }
-
   const message = {
     type: eventType,
     userId: payload.userId,
@@ -58,7 +57,7 @@ export function publishEvent(eventType, payload, email, phone) {
   };
 
   amqpChannel.publish(
-    NOTIFICATION_EXCHANGE,
+    NOTIFICATION_EXCHANGE, '',
     Buffer.from(JSON.stringify(message)),
     { persistent: true }
   );

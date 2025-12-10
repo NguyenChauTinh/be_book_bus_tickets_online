@@ -60,6 +60,14 @@ export const requestRegisterOtp = async (req, res) => {
           .json({ message: "Vui lòng cung cấp địa chỉ Email." });
       }
     }
+    if (email) {
+      const existingKhachHangWithEmail = await KhachHang.findOne({ email });
+      if (existingKhachHangWithEmail) {
+        return res.status(400).json({
+          message: "Địa chỉ Email này đã được đăng ký. Vui lòng sử dụng Email khác.",
+        });
+      }
+    }
     const existingAccount = await TaiKhoan.findOne({ soDienThoai });
     if (existingAccount) {
       return res.status(400).json({
@@ -73,7 +81,9 @@ export const requestRegisterOtp = async (req, res) => {
     await redisClient.set(redisKey, otp, {
       EX: OTP_EXPIRY_SECONDS,
     });
-    await sendOtpEmail(email, otp, "đăng ký tài khoản");
+    if (method === "email") {
+       await sendOtpEmail(email, otp, "đăng ký tài khoản");
+    }
 
     console.log(`[Register OTP] Sent to ${soDienThoai}: ${otp}`);
     res.status(200).json({
@@ -87,14 +97,15 @@ export const requestRegisterOtp = async (req, res) => {
 export const completeRegistration = async (req, res) => {
   try {
     const { soDienThoai, otp, hoVaTen, email, ngaySinh, gioiTinh } = req.body;
-
+    console.log("req.body on complete request: ",  req.body);
     const redisKey = `otp:register:${soDienThoai}`;
     const storedOtp = await redisClient.get(redisKey);
+    console.log("storedOtp từ redis register: ", storedOtp);
 
     if (!storedOtp) {
       return res.status(400).json({ message: "OTP đã hết hạn." });
     }
-    if (storedOtp !== "032032") {
+    if (otp !== '032032') {
       if (storedOtp !== otp) {
         return res.status(400).json({ message: "Mã OTP không chính xác." });
       }
@@ -128,6 +139,7 @@ export const completeRegistration = async (req, res) => {
       khachHang: newKhachHang,
     });
   } catch (error) {
+    console.log("Lỗi máy chủ : ", error.message);
     res.status(500).json({ message: "Lỗi máy chủ", error: error.message });
   }
 };

@@ -6,7 +6,7 @@ metadata:
   labels:
     app: api-gateway
 spec:
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
       app: api-gateway
@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: api-gateway-container
-        image: asia-southeast1-docker.pkg.dev/smartbusproject-480408/smartbus-repo/api-gateway-service:v3.0.26
+        image: asia-southeast1-docker.pkg.dev/smartbusproject-480408/smartbus-repo/api-gateway-service:v4.0.1
         ports:
         - containerPort: 3000
         
