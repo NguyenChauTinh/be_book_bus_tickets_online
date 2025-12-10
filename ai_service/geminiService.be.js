@@ -1,5 +1,13 @@
 import axios from "axios";
-import { TRIP_API_URL, PROMO_API_URL, BOOKING_API_URL, GIAVE_API_URL, TUYEN_DUONG_API_URL, API_GEMINI_URL } from "./config/env.js";
+import {
+  TRIP_API_URL,
+  PROMO_API_URL,
+  BOOKING_API_URL,
+  GIAVE_API_URL,
+  TUYEN_DUONG_API_URL,
+  API_GEMINI_URL,
+  API_GEMINI_KEY,
+} from "./config/env.js";
 // const TRIP_API_URL = "http://localhost:3001/api/v1";
 // const PROMO_API_URL = "http://localhost:3004/api/v1";
 // const BOOKING_API_URL = "http://localhost:3005/api/v1";
@@ -20,8 +28,6 @@ const parseHHMMToMinutes = (timeString) => {
   const [hours, minutes] = timeString.split(":").map(Number);
   return hours * 60 + minutes;
 };
-
-
 
 // --- Hàm callYourTripAPI (Đã cập nhật) ---
 const callYourTripAPI = async (departure, destination, date) => {
@@ -702,8 +708,6 @@ const callYourPriceCalculationAPI = async (tripId, seatIds, promoCode) => {
   }
 };
 
-
-
 const systemPrompt = `
   Bạn là trợ lý AI chính thức của Nhà xe Việt Tân Phát.
   Nhiệm vụ của bạn là giúp hành khách tìm kiếm chuyến xe,
@@ -1056,8 +1060,11 @@ async function run(history, userId) {
     tools: tools,
   };
 
-  const response = await axios.post(API_GEMINI_URL, payload, {
-    headers: { "Content-Type": "application/json" },
+  const response = await axios.post(API_GEMINI_URL.trim(), payload, {
+    headers: {
+      "Content-Type": "application/json",
+      "x-goog-api-key": API_GEMINI_KEY, // Bạn đã cấu hình header đúng rồi!
+    },
   });
 
   if (response.status !== 200) {
@@ -1131,7 +1138,7 @@ async function run(history, userId) {
       ],
     });
 
-    return run(history);
+    return run(history, userId);
   } else if (modelResponsePart.text) {
     const botReply = modelResponsePart.text;
     history.push({ role: "model", parts: [{ text: botReply }] });
