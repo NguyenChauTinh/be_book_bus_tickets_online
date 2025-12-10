@@ -1,6 +1,9 @@
 import TuyenDuong from "../models/tuyenDuong.model.js";
 import ChiTietTuyenDuong from "../models/chiTietTuyenDuong.model.js";
 import mongoose from "mongoose";
+import redisClient from "../config/redis.js";
+
+const REDIS_KEY = "DanhSachTuyenDuong";
 
 export const createTuyenDuong = async (req, res) => {
   try {
@@ -45,7 +48,7 @@ export const createTuyenDuong = async (req, res) => {
     const populated = await TuyenDuong.findById(tuyen._id).populate(
       "chiTietTuyen"
     );
-
+    await redisClient.del(REDIS_KEY);
     res.status(201).json(populated);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -102,9 +105,10 @@ export const updateTuyenDuong = async (req, res) => {
     const updated = await TuyenDuong.findById(tuyen._id).populate(
       "chiTietTuyen"
     );
+    await redisClient.del(REDIS_KEY);
     res.json(updated);
   } catch (err) {
-    console.error("❌ Lỗi cập nhật tuyến:", err);
+    console.error("Lỗi cập nhật tuyến:", err);
     res.status(400).json({ error: err.message });
   }
 };
@@ -112,7 +116,7 @@ export const updateTuyenDuong = async (req, res) => {
 export const getTuyenDuong = async (req, res) => {
   try {
     const tuyen = await getTuyenDuongByIdInternal(req.params.id);
-    
+
     if (!tuyen) return res.status(404).json({ error: "Không tìm thấy tuyến" });
 
     res.json(tuyen);
@@ -188,13 +192,30 @@ export const deleteTuyenDuong = async (req, res) => {
   }
 };
 export const listTuyenDuong = async (req, res) => {
+  const CACHE_TIME = 3600 * 24;
+
   try {
+    const cachedData = await redisClient.get(REDIS_KEY);
+
+    if (cachedData) {
+      const tuyens = JSON.parse(cachedData);
+      return res.json(tuyens);
+    }
+
     const tuyens = await TuyenDuong.find().populate({
       path: "chiTietTuyen",
       populate: { path: "diaDiem", select: "maDiaDiem tenDiaDiem" },
     });
+
+    if (tuyens && tuyens.length > 0) {
+      await redisClient.set(REDIS_KEY, JSON.stringify(tuyens), {
+        EX: CACHE_TIME,
+      });
+    }
+
     res.json(tuyens);
   } catch (err) {
+    console.error("Lỗi lấy danh sách tuyến đường:", err);
     res.status(400).json({ error: err.message });
   }
 };
@@ -330,11 +351,13 @@ export const getDiaDiemKetNoi = async (req, res) => {
   }
 };
 export const getTuyenDuongByIdInternal = async (id) => {
-  const tuyen = await TuyenDuong.findById(id).populate({
-    path: "chiTietTuyen",
-    options: { sort: { thuTu: 1 } }, 
-    populate: { path: "diaDiem", select: "maDiaDiem tenDiaDiem" },
-  }).lean();
-  
+  const tuyen = await TuyenDuong.findById(id)
+    .populate({
+      path: "chiTietTuyen",
+      options: { sort: { thuTu: 1 } },
+      populate: { path: "diaDiem", select: "maDiaDiem tenDiaDiem" },
+    })
+    .lean();
+
   return tuyen;
 };

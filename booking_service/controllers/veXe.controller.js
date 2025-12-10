@@ -7,11 +7,13 @@ import {
   publishEvent,
   publishSeatUpdateCommand,
 } from "../utils/rabbitmq.helper.js";
+import redisClient from "../config/redis.js";
+import PDFDocument from "pdfkit";
+import path from "path";
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-/**
- * @desc Tạo mã vé ngẫu nhiên, không trùng lặp, dài 8-10 ký tự.
- * @returns {string} Mã vé mới, ví dụ: "VEX-A1B2C3D4"
- */
 const generateMaVe = () => {
   const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   const length = Math.floor(Math.random() * 3) + 8;
@@ -168,7 +170,7 @@ export const createTicket = async (req, res) => {
         ...detail,
         nhanVienTao: nhanVienTao || null,
         maGiamGia: maGiamGia || null,
-        ngayKhoiHanh:  detail.ngayKhoiHanh || ngayKhoiHanh,
+        ngayKhoiHanh: detail.ngayKhoiHanh || ngayKhoiHanh,
         tuyenDuong: detail.tuyenDuong || routeId,
       })),
     });
@@ -197,7 +199,7 @@ export const createTicket = async (req, res) => {
               : "TIEN_MAT",
           trangThai: "THANH_CONG",
           noiDungThanhToan: `Thanh toan khi dat ve ${newTicket.maVe}`,
-          nhanVienTaoHoaDon: nhanVienTao,
+          nhanVienTaoHoaDon:  nhanVienTao,
         });
         await newHoaDon.save({ session });
 
@@ -246,7 +248,6 @@ export const createTicket = async (req, res) => {
           "vi-VN"
         )} VND.`,
       };
-      console.log("Event Payload:", eventPayload);
       if (userId) {
         publishEvent(
           "TICKET_BOOKED_SUCCESSFULLY",
@@ -350,7 +351,6 @@ export const searchTickets = async (req, res) => {
  */
 export const updateMultipleTicketDetails = async (req, res) => {
   try {
-    console.log("Đang gọi cập nhật vé");
 
     const { ticketId } = req.params;
     const { updatesList, maGiamGia } = req.body;
@@ -430,7 +430,6 @@ export const updateMultipleTicketDetails = async (req, res) => {
     }
 
     await ticket.save();
-    console.log("New ticket : ", ticket);
     res.status(200).json({
       success: true,
       message: "Cập nhật thông tin chi tiết vé thành công 1.",
@@ -549,13 +548,13 @@ export const createManualInvoice = async (req, res) => {
     phuThu,
     giamGia,
   } = req.body;
+  console.log("createManualInvoice req === ", req.body);
   const { ticketId } = req.params;
 
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
-    console.log("Hàm tạo hóa đơn và thanh toán vé xe đã tạo trước đó");
 
     if (
       !["TAI_VAN_PHONG", "DAI_LY", "CHUYEN_KHOAN", "KHONG_THU_TIEN"].includes(
@@ -598,6 +597,7 @@ export const createManualInvoice = async (req, res) => {
         : phuongThuc,
       trangThai: "THANH_CONG",
       donViThanhToan: donViThanhToan,
+      nhanVienTaoHoaDon: nhanVienThuTien,
       noiDungThanhToan: `Thanh toan bo sung cho ve ${ticket.maVe}`,
     });
     await newHoaDon.save({ session });
@@ -1098,3 +1098,130 @@ export const getTicketsByUserId = async (req, res) => {
     res.status(500).json({ success: false, message: "Lỗi máy chủ." });
   }
 };
+
+export const printMultipleTickets = async (req, res) => {
+  try {
+    const { ticketDetails, tenLoaiXe } = req.body;
+
+    if (!ticketDetails || !Array.isArray(ticketDetails) || ticketDetails.length === 0) {
+      return res.status(400).json({ message: "Danh sách vé trống." });
+    }
+
+    let routeList = [];
+    const routeDataString = await redisClient.get("DanhSachTuyenDuong");
+    if (routeDataString) {
+      try { routeList = JSON.parse(routeDataString); } catch (e) {}
+    }
+
+    const printDataList = ticketDetails.map((detail) => {
+      const route = routeList.find(r => r._id === detail.tuyenDuong);
+      const ngayKhoiHanh = moment(detail.ngayKhoiHanh);
+      return {
+        maVe: detail.hoaDon?.maHoaDon || detail.maVe || "---",
+        tenTuyen: route ? route.tenTuyen : "Chưa cập nhật",
+        gioDi: ngayKhoiHanh.format("HH:mm"),
+        ngayDi: ngayKhoiHanh.format("DD/MM/YYYY"),
+        soXe: detail.chuyenXe,
+        loaiXe: tenLoaiXe || "Giường nằm",
+        diemDon: detail.diemDonTC || detail.diemDon,
+        diemTra: detail.diemTraTC || detail.diemTra,
+        tenKhachHang: detail.tenKhachHang,
+        soDienThoai: detail.soDienThoai,
+        maChoNgoi: detail.maChoNgoi,
+        giaVe: detail.giaVeCoBan,
+        ghiChu: detail.ghiChu
+      };
+    });
+
+    const doc = new PDFDocument({
+      size: [227, 400], 
+      margins: { top: 10, bottom: 10, left: 10, right: 10 },
+      autoFirstPage: false 
+    });
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `inline; filename=tickets.pdf`);
+
+    doc.pipe(res);
+
+    const fontPath = path.join(__dirname, "../fonts/Roboto-Regular.ttf"); 
+    
+    try {
+        doc.font(fontPath);
+    } catch (err) {
+        console.warn("Không tìm thấy font tiếng Việt, dùng font mặc định:", err.message);
+        // doc.font('Helvetica');
+    }
+
+    printDataList.forEach((data, index) => {
+      doc.addPage();
+
+      doc.fontSize(14).text("SmartBus", { align: "center" });
+      doc.fontSize(9).text("Hotline: 1900 9999", { align: "center" });
+      
+      doc.moveDown(0.5);
+      drawLine(doc);
+      doc.moveDown(0.5);
+
+      doc.fontSize(13).text("Phiếu lên xe", { align: "center" });
+      doc.fontSize(10).text(`Mã: ${data.maVe}`, { align: "center" });
+      doc.moveDown(0.5);
+
+      drawRow(doc, "Tuyến:", data.tenTuyen);
+      drawRow(doc, "Xuất bến:", `${data.gioDi} - ${data.ngayDi}`);
+      drawRow(doc, "Loại xe:", data.loaiXe);
+      
+      doc.moveDown(0.5);
+      doc.fontSize(10).text("Ghế:", { continued: true });
+      doc.fontSize(16).text(`  ${data.maChoNgoi}`, { align: "right" }); 
+      doc.moveDown(0.5);
+
+      drawLine(doc); 
+
+      doc.moveDown(0.5);
+      drawRow(doc, "Khách:", data.tenKhachHang);
+      drawRow(doc, "SĐT:", data.soDienThoai);
+      drawRow(doc, "Điểm đón:", data.diemDon);
+      drawRow(doc, "Điểm trả:", data.diemTra);
+  
+
+      doc.moveDown(1);
+      drawLine(doc);
+      doc.moveDown(0.5);
+      drawRowTongTien(doc, "Tổng cộng:", data.giaVe.toLocaleString('vi-VN') + 'VND');
+      
+
+      doc.moveDown(1);
+      doc.fontSize(8).text("Vui lòng đến trước giờ đi 15 phút.", { italic: true });
+      doc.text("Chúc quý khách thượng lộ bình an!", { italic: true });
+    });
+
+    doc.end();
+
+  } catch (error) {
+    console.error("PDFKit Error:", error);
+    if (!res.headersSent) {
+        res.status(500).json({ message: "Lỗi tạo PDF: " + error.message });
+    }
+  }
+};
+
+
+function drawLine(doc) {
+  const y = doc.y;
+  doc.lineWidth(0.5)
+     .moveTo(10, y) 
+     .lineTo(217, y) 
+     .stroke();
+}
+
+function drawRow(doc, label, value) {
+  const startY = doc.y;
+  doc.fontSize(10).text(label, 10, startY, { width: 60, align: 'left' });
+  doc.text(value, 70, startY, { width: 147, align: 'right' }); // 227 - 10 - 70
+}
+function drawRowTongTien(doc, label, value) {
+  const startY = doc.y;
+  doc.fontSize(12).text(label, 10, startY, { width: 60, align: 'left', bold: true });
+  doc.text(value, 70, startY, { width: 147, align: 'right' }); // 227 - 10 - 70
+}

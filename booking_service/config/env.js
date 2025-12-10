@@ -6,6 +6,7 @@ export const {
   NODE_ENV,
   PORT,
   DB_URI,
+  REDIS_URL,
   JWT_SECRET,
   JWT_EXPIRES_IN,
   AWS_BUCKET_NAME,

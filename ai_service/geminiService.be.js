@@ -8,13 +8,7 @@ import {
   API_GEMINI_URL,
   API_GEMINI_KEY,
 } from "./config/env.js";
-// const TRIP_API_URL = "http://localhost:3001/api/v1";
-// const PROMO_API_URL = "http://localhost:3004/api/v1";
-// const BOOKING_API_URL = "http://localhost:3005/api/v1";
-// const API_GEMINI_KEY = "AIzaSyAaKOXhDKTGKFDH0GvfzEkwR5tabN7Vs14";
-// const API_GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_GEMINI_KEY}`;
-// const GIAVE_API_URL = "http://localhost:3001/api/v1/gia-ve/tim-gia-ve-ap-dung";
-// const TUYEN_DUONG_API_URL = "http://localhost:3001/api/v1/tuyen-duong/lay-tuyen-duong";
+
 const formatMinutesToHHMM = (totalMinutes) => {
   if (isNaN(totalMinutes)) return "00:00";
   const hours = Math.floor(totalMinutes / 60);

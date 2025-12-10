@@ -14,12 +14,15 @@ import {
   getTicketsByChuyenXeList,
   filterVeXeMaster,
   getTicketsByUserId,
+  printMultipleTickets,
 } from "../controllers/veXe.controller.js";
 
 const veXeRouter = express.Router();
 
 veXeRouter.post("/", createTicket);
 veXeRouter.get("/tim-kiem", searchTickets);
+
+veXeRouter.post("/in-ve", printMultipleTickets);
 veXeRouter.post("/filter-by-chuyen", filterVeXeMaster);
 veXeRouter.get("/chuyen-xe/:chuyenXeId", getTicketsByChuyenXeId);
 veXeRouter.get("/user/:userId", getTicketsByUserId);
@@ -27,6 +30,7 @@ veXeRouter.post(
   "/thong-ke/so-luong-theo-chuyen",
   getTicketCountsForMultipleTrips
 );
+
 veXeRouter.get(
   "/chuyen-xe/:chuyenXeId/da-huy",
   getCancelledTicketsByChuyenXeId

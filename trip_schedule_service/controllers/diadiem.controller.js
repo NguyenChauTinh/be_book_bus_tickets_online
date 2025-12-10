@@ -2,15 +2,8 @@ import DiaDiem from "../models/diaDiem.model.js";
 
 export const createDiaDiem = async (req, res, next) => {
   try {
-    const io = req.app.get("socketio");
-    if (!io) {
-      console.error("Socket.IO not initialized in diadiemController");
-      return res.status(500).json({ error: "Socket.IO not initialized" });
-    }
-
     const { maDiaDiem, tenDiaDiem, diaChi, ghiChu, active } = req.body;
 
-    // Kiểm tra trùng mã
     const existingDiaDiem = await DiaDiem.findOne({ maDiaDiem });
     if (existingDiaDiem) {
       return res.status(409).json({
@@ -19,7 +12,6 @@ export const createDiaDiem = async (req, res, next) => {
       });
     }
 
-    // Tạo mới (không cần array)
     const newDiaDiem = await DiaDiem.create({
       maDiaDiem,
       tenDiaDiem,
@@ -28,12 +20,7 @@ export const createDiaDiem = async (req, res, next) => {
       diaChi,
     });
 
-    console.log("Emitting diaDiem:created:", newDiaDiem);
 
-    // Emit real-time cho tất cả client
-    io.emit("diaDiem:created", newDiaDiem);
-
-    // Trả response chuẩn cho client gọi API
     res.status(201).json({
       success: true,
       message: "Địa điểm created successfully",
@@ -86,12 +73,6 @@ export const updateDiaDiem = async (req, res, next) => {
     diaDiem.active = active;
     diaDiem.diaChi = diaChi;
     await diaDiem.save();
-    // const io = req.app.get("socketio");
-    // if (!io) {
-    //   console.error("Socket.IO not initialized in diadiemController");
-    //   return res.status(500).json({ error: "Socket.IO not initialized" });
-    // }
-    // io.emit("updateDiadiem", diaDiem);
     res.json({
       status: "success",
       message: "Dia diem updated successfully",
@@ -117,12 +98,7 @@ export const deleteDiaDiem = async (req, res, next) => {
       throw error;
     }
     await DiaDiem.findByIdAndDelete(id);
-    // const io = req.app.get("socketio");
-    // if (!io) {
-    //   console.error("Socket.IO not initialized in diadiemController");
-    //   return res.status(500).json({ error: "Socket.IO not initialized" });
-    // }
-    // io.emit("deleteDiadiem", id);
+   
     res.json({
       status: "success",
       message: "Dia diem deleted successfully",
@@ -147,10 +123,7 @@ export const getActiveDiaDiem = async (req, res, next) => {
 
 // diadiem active, thay doi khi nhan nut xoa tren giao dien giua true hoac false
 export const toggleActiveDiaDiem = async (req, res, next) => {
-  console.log("Toggle Active DiaDiem called");
   try {
-    console.log("Toggle Active DiaDiem called");
-    console.log("Request Params:", req.params);
     const { id } = req.params;
     const diaDiem = await DiaDiem.findById(id);
     if (!diaDiem) {
@@ -160,12 +133,7 @@ export const toggleActiveDiaDiem = async (req, res, next) => {
     }
     diaDiem.active = !diaDiem.active;
     await diaDiem.save();
-    // const io = req.app.get("socketio");
-    // if (!io) {
-    //   console.error("Socket.IO not initialized in diadiemController");
-    //   return res.status(500).json({ error: "Socket.IO not initialized" });
-    // }
-    // io.emit("toggleActiveDiadiem", diaDiem);
+  
     res.json({
       status: "success",
       message: "Dia diem active status toggled successfully",
@@ -190,8 +158,7 @@ export const timDiaDiemTheoTen = async (req, res) => {
         .json({ success: false, message: "Vui lòng cung cấp tên địa điểm." });
     }
 
-    // Tìm kiếm tương đối, không phân biệt hoa/thường
-    // Ví dụ: "hà nội" sẽ khớp với "Bến xe Giáp Bát, Hà Nội"
+ 
     const diaDiem = await DiaDiem.findOne({
       tenDiaDiem: { $regex: ten, $options: "i" },
     }).lean();

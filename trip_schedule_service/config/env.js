@@ -4,6 +4,7 @@ dotenv.config();
 export const {
   NODE_ENV,
   PORT,
+  REDIS_URL,
   MONGO_URI_ATLAS,
   SERVICE_NAME,
   RABBITMQ_URL,
@@ -14,5 +15,5 @@ export const {
   TRIP_SERVICE_QUEUE,
   TRIP_SERVICE_ROUTING_KEY,
   URL_BOOKING_SERVICE,
-  GIAVE_API_URL
+  GIAVE_API_URL,
 } = process.env;

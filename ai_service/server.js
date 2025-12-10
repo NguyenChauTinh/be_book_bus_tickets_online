@@ -16,8 +16,7 @@ app.get('/health', (req, res) => {
 });
 app.post("/api/v1/chat", async (req, res) => {
   try {
-    const { userInput, sessionId } = req.body;
-    const userId = req.headers['x-user-id'];
+    const { userInput, userId, sessionId } = req.body;
 
     if (!userInput || !sessionId) {
       return res
