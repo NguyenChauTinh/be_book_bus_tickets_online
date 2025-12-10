@@ -1,5 +1,4 @@
 import express from "express";
-// Import tất cả export từ controller
 import * as authController from "../controllers/taiKhoanKhachHang.controller.js";
 import authMiddleware from "../middlewares/auth.middleware.js";
 
@@ -16,7 +15,7 @@ taiKhoanKHRouter.post(
 
 taiKhoanKHRouter.post("/login/request-otp", authController.requestLoginOtp);
 taiKhoanKHRouter.post("/login/verify", authController.verifyLoginOtp);
-
+taiKhoanKHRouter.post("/xoa-lich-su", authController.clearSearchHistory);
 taiKhoanKHRouter.post("/check/request-otp", authController.requestOtp);
 taiKhoanKHRouter.post("/check/verify", authController.verifyOtp);
 

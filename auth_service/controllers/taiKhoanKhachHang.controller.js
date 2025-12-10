@@ -427,3 +427,41 @@ export const getProfilesByIds = async (req, res) => {
     res.status(500).json({ success: false, message: "Lỗi máy chủ." });
   }
 };
+export const clearSearchHistory = async (req, res) => {
+  try {
+    const userId = req.headers["x-user-id"] || req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Yêu cầu đăng nhập để thực hiện chức năng này." 
+      });
+    }
+
+    const updatedAccount = await TaiKhoan.findByIdAndUpdate(
+      userId,
+      { $set: { lichSuTimKiem: [] } },
+      { new: true } 
+    );
+
+    if (!updatedAccount) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Không tìm thấy tài khoản khách hàng." 
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Đã xóa toàn bộ lịch sử tìm kiếm thành công.",
+    });
+
+  } catch (error) {
+    console.error("Lỗi khi xóa lịch sử tìm kiếm:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Lỗi máy chủ.", 
+      error: error.message 
+    });
+  }
+};
