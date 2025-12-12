@@ -264,6 +264,7 @@ export const verifyLoginOtp = async (req, res) => {
       email: khachHangInfo.email,
       ngaySinh: khachHangInfo.ngaySinh,
       gioiTinh: khachHangInfo.gioiTinh,
+      soLuongVeDaDat: account.soLuongVeDaDat,
     });
   } catch (error) {
     res.status(500).json({ message: "Lỗi máy chủ", error: error.message });
