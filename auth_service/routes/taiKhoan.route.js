@@ -7,13 +7,17 @@ import {
     layDanhSachTaiKhoan,
     layDanhSachTaiKhoanPhongVe,
     refreshToken,
-    doiMatKhau
+    doiMatKhau,
+    verifyLoginOtp,
+    guiLaiMaOtp
 } from '../controllers/taiKhoan.controller.js';
 
 const taiKhoanRouter = express.Router();
 
 taiKhoanRouter.post('/dang-ky', dangKy);
 taiKhoanRouter.post('/dang-nhap', dangNhap);
+taiKhoanRouter.post('/verify-otp', verifyLoginOtp);
+taiKhoanRouter.post('/resent-otp', guiLaiMaOtp);
 taiKhoanRouter.post('/refresh-token', refreshToken);
 taiKhoanRouter.get('/danh-sach', layDanhSachTaiKhoan);
 taiKhoanRouter.get('/danh-sach/phong-ve', layDanhSachTaiKhoanPhongVe);

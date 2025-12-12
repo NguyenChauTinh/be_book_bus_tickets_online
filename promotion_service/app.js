@@ -29,7 +29,7 @@ app.get('/', (req, res) => {
 app.use("/api/v1/khuyen-mai", khuyenMaiRouter);
 
 app.listen(PORT, async () => {
-  console.log(`Server is running on port http://localhost:${PORT}`);
+  console.log(`Server is running on port : ${PORT}`);
   console.log(new Date());
   await connectToDatabase();
 });

@@ -3,7 +3,7 @@ import ChiTietTuyenDuong from "../models/chiTietTuyenDuong.model.js";
 import mongoose from "mongoose";
 import redisClient from "../config/redis.js";
 
-const REDIS_KEY = "DanhSachTuyenDuong";
+const REDIS_KEY = "danhsachtuyenduong";
 
 export const createTuyenDuong = async (req, res) => {
   try {
@@ -228,6 +228,7 @@ export const deleteChiTietTuyenDuong = async (req, res) => {
     if (!chiTiet)
       return res.status(404).json({ error: "Không tìm thấy chi tiết tuyến" });
     await chiTiet.remove();
+    await redisClient.del(REDIS_KEY);
     res.json({ message: "Xóa chi tiết tuyến thành công" });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -242,6 +243,7 @@ export const toggleActiveTuyenDuong = async (req, res) => {
     if (!tuyen) return res.status(404).json({ error: "Không tìm thấy tuyến" });
     tuyen.active = !tuyen.active;
     await tuyen.save();
+    await redisClient.del(REDIS_KEY);
     res.json({ message: "Thay đổi trạng thái tuyến thành công", tuyen });
   } catch (err) {
     res.status(400).json({ error: err.message });

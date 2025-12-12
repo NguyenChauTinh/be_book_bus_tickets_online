@@ -5,8 +5,6 @@ import redisClient from "../config/redis.js";
 
 
 const authMiddleware = async (req, res, next) => {
-    console.log("req.path === ", req.path);
-
   if (req.method == "OPTIONS" || 
         req.path == "/" || 
         req.path == "/info" || 
@@ -19,6 +17,7 @@ const authMiddleware = async (req, res, next) => {
   
   const publicPaths = [
   "/api/v1/tai-khoan/dang-nhap",
+  "/api/v1/tai-khoan/verify-otp",
   "/api/v1/tai-khoan/dang-ky",
   "/api/v1/tai-khoan/refresh-token",
   "/api/v1/tai-khoan-khach-hang/register/request-otp",
@@ -35,7 +34,6 @@ const authMiddleware = async (req, res, next) => {
   if (isPublic) {
     return next();
   }
-  console.log("Protected Path - Checking Token");
   const authHeader = req.headers["authorization"];
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res.status(401).json({
@@ -52,14 +50,12 @@ const authMiddleware = async (req, res, next) => {
   }
 
   try {
-    console.log("JWT on gateway === ", env.JWT_SECRET);
     const verified = jwt.verify(
       token,
       env.JWT_SECRET
     );
 
     const userId = verified.userId || verified.id;
-    console.log("User id == ", userId);
     const sessionKey = `session:${userId}`;
     const sessionExists = await redisClient.get(sessionKey);
     

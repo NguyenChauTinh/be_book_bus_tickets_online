@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: booking-service-container
-        image: asia-southeast1-docker.pkg.dev/smartbusproject-480408/smartbus-repo/booking-service:v4.0.1
+        image: asia-southeast1-docker.pkg.dev/smartbusproject-480408/smartbus-repo/booking-service:v8
         ports:
         - containerPort: 3005 
         
@@ -39,7 +39,16 @@ spec:
             configMapKeyRef:
               name: smartbus-config
               key: URL_BOOKING_SERVICE
-              
+        - name: URL_TRIP_SERVICE
+          valueFrom:
+            configMapKeyRef:
+              name: smartbus-config
+              key: URL_TRIP_SERVICE
+        - name: URL_AUTH_SERVICE
+          valueFrom:
+            configMapKeyRef:
+              name: smartbus-config
+              key: URL_AUTH_SERVICE
         # B. Biến Nhạy cảm từ Secret
         - name: DB_URI 
           valueFrom:

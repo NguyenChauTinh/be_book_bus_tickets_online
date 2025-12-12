@@ -1,6 +1,6 @@
 import LoaiXe from "../models/loaiXe.model.js";
 import redisClient from "../config/redis.js";
-const REDIS_KEY = "DanhSachLoaiXe";
+const REDIS_KEY = "danhsachloaixe";
 export const createLoaiXe = async (req, res) => {
   try {
     const { maLoaiXe, tenLoaiXe, moTa, trangThai, soDoGhe, soLuongGhe } =
@@ -113,28 +113,32 @@ export const getAllLoaiXe = async (req, res) => {
 
   try {
     let allLoaiXes = [];
+    let cached = true;
 
     const cachedData = await redisClient.get(REDIS_KEY);
 
     if (cachedData) {
       const parsedObj = JSON.parse(cachedData);
-      allLoaiXes = parsedObj.data; 
+      allLoaiXes = parsedObj.data;
     } else {
       allLoaiXes = await LoaiXe.find();
+      cached = false;
 
       if (allLoaiXes) {
-        await redisClient.set(REDIS_KEY, JSON.stringify({ data: allLoaiXes }));
+        await redisClient.set(REDIS_KEY, JSON.stringify({ data: allLoaiXes }), {
+          EX: 24 * 3600,
+        });
       }
     }
 
     let finalData = allLoaiXes;
 
     if (trangThai !== undefined) {
-      const isTrangThai = trangThai === "true"; 
+      const isTrangThai = trangThai === "true";
       finalData = allLoaiXes.filter((x) => x.trangThai === isTrangThai);
     }
 
-    res.status(200).json({ data: finalData });
+    res.status(200).json({ data: finalData , cached});
   } catch (error) {
     res.status(500).json({
       message: "Lỗi khi lấy danh sách loại xe",

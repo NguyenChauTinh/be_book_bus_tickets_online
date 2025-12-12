@@ -18,7 +18,7 @@ spec:
       containers:
       - name: notification-service-container
         # Thay thế [PROJECT_ID] nếu cần
-        image: asia-southeast1-docker.pkg.dev/smartbusproject-480408/smartbus-repo/notification-service:v4.0.1
+        image: asia-southeast1-docker.pkg.dev/smartbusproject-480408/smartbus-repo/notification-service:v8
         ports:
         - containerPort: 3003
         

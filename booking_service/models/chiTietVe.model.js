@@ -17,7 +17,7 @@ const ChiTietVeSchema = new mongoose.Schema(
     },
     tenKhachHang: {
       type: String,
-      required: true,
+      default: ''
     },
     soDienThoai: {
       type: String,
