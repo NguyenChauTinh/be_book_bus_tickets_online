@@ -82,7 +82,7 @@ io.on("connection", (client) => {
         currentLocks.push({
           seatCode: key.split("_")[1],
           lockedBy: val.userName,
-          selfLocked: val.userId === user.id, // Đánh dấu nếu chính mình đang lock
+          selfLocked: val.userId === user.userId, // Đánh dấu nếu chính mình đang lock
         });
       }
     });
@@ -107,10 +107,14 @@ io.on("connection", (client) => {
       return;
     }
 
-    // Thực hiện Lock
+    let displayName = "Nhân viên";
+    if (user.tenNhanVien) displayName = user.tenNhanVien;
+    else if (user.tenTaiKhoan) displayName = user.tenTaiKhoan;
+    else if (user.nhanVienId && user.nhanVienId.tenNhanVien) displayName = user.nhanVienId.tenNhanVien;
+
     lockedSeats.set(key, {
       userId: user.userId,
-      userName: user.tenNhanVien || "Nhân viên",
+      userName: displayName, // Sử dụng tên đã xử lý
       socketId: client.id,
       timestamp: Date.now(),
     });

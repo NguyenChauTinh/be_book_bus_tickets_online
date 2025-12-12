@@ -285,6 +285,15 @@ export const createTicket = async (req, res) => {
           soLuong: chiTiet.length,
           tongTien: savedTicket.tongTien,
         });
+
+        const chuyenXeId = chiTiet[0].chuyenXe.toString();
+        
+        req.io.to(chuyenXeId).emit("TRIP_UPDATED", {
+          type: "NEW_BOOKING",
+          maVe: savedTicket.maVe,
+          seats: chiTiet.map(ct => ct.maChoNgoi),
+          updatedAt: new Date()
+        });
       }
     } catch (socketError) {
       console.error("Lỗi khi bắn sự kiện socket:", socketError);
