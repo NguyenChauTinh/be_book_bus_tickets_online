@@ -4,7 +4,7 @@ const { Schema } = mongoose;
 export const LoaiDieuKien = {
     DAT_LAN_DAU: 'DAT_LAN_DAU',
     SO_LUONG_VE: 'SO_LUONG_VE',
-    LOAI_HANH_TRINH: 'LOAI_HANH_TRINH',
+    TONG_TIEN_HOA_DON: 'TONG_TIEN_HOA_DON',
     GIO_THAP_DIEM: 'GIO_THAP_DIEM',
 };
 
@@ -23,6 +23,10 @@ const KhuyenMaiConditionSchema = new Schema({
     soLuongToiThieu: {
         type: Number,
         min: 1,
+    },
+    tongTienToiThieu: {
+        type: Number,
+        min: 0,
     },
     loaiHanhTrinh: {
         type: String,

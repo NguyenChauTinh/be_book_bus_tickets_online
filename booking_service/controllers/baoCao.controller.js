@@ -106,6 +106,10 @@ export const getBaoCaoDoanhThuNhanVien = async (req, res) => {
 
     if (danhSachIDs && danhSachIDs.length > 0) {
         customMatchStage["hoaDonInfo.nhanVienTaoHoaDon"] = { $in: danhSachIDs };
+    }else{
+      if (danhSachIDs && danhSachIDs.length > 0) {
+        customMatchStage["hoaDonInfo.nhanVienTaoHoaDon"] = { $ne: null };
+    }
     }
 
     await runDoanhThuAggregation(req, res, customMatchStage);

@@ -40,7 +40,7 @@ data:
   VNP_URL: "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
   VNP_RETURN_URL: "https://api.smartbus.io.vn/api/v1/payment/vnpay_return"
   VNP_IPN_URL: "https://api.smartbus.io.vn/api/v1/payment/vnpay_ipn"
-  FRONTEND_URL: "http://localhost:3000/payment-result"
+  FRONTEND_URL: "https://nhaxe.smartbus.io.vn/payment-result"
   UPDATE_SEAT_EXCHANGE: "update_seat_exchange"
   TRIP_SERVICE_ROUTING_KEY: "trip.update_seats"
   EMAIL_NOTIFICATION_QUEUE : "email_notification_queue"

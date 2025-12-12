@@ -203,18 +203,80 @@ export const layKhuyenMaiTheoId = async (req, res) => {
   }
 };
 
+// export const timKhuyenMaiApDung = async (req, res) => {
+//     try {
+//         const { ngay, gio, soLuongVe, loaiHanhTrinh, datLanDau } = req.query;
+
+//         const ngayChay = new Date(ngay);
+//         const gioChay = parseInt(gio, 10);
+//         const soLuongVeChay = soLuongVe ? parseInt(soLuongVe, 10) : null;
+//         const loaiHanhTrinhChay = loaiHanhTrinh; 
+//         const datLanDauChay = datLanDau === 'true'; 
+
+
+
+//     const khuyenMaiCoHieuLuc = await KhuyenMai.find({
+//       trangThai: true,
+//       ngayBatDau: { $lte: ngayChay },
+//       ngayKetThuc: { $gte: ngayChay },
+//     });
+
+//     if (!khuyenMaiCoHieuLuc.length) {
+//       return res.json({ success: true, data: [] });
+//     }
+
+//     const khuyenMaiApDung = khuyenMaiCoHieuLuc.filter((km) => {
+//       return km.lines.some((line) => {
+//         if (!line.trangThai) return false;
+
+//         if (!line.dieuKienApDung || line.dieuKienApDung.length === 0) {
+//           return true;
+//         }
+
+//         return line.dieuKienApDung.every((dk) => {
+//           switch (dk.loaiDieuKien) {
+//             case "GIO_THAP_DIEM":
+//               if (isNaN(gioChay)) return false;
+//               return gioChay >= dk.gioBatDau && gioChay <= dk.gioKetThuc;
+
+//             case "SO_LUONG_VE":
+//               if (!soLuongVeChay || isNaN(soLuongVeChay)) return false;
+//               return soLuongVeChay >= dk.soLuongToiThieu;
+
+//             case "LOAI_HANH_TRINH":
+//               if (!loaiHanhTrinhChay) return false;
+//               return loaiHanhTrinhChay === dk.loaiHanhTrinh;
+
+//             case "DAT_LAN_DAU":
+//               return datLanDauChay === true;
+
+//             default:
+//               return false;
+//           }
+//         });
+//       });
+//     });
+
+//     res.json({ success: true, data: khuyenMaiApDung });
+//   } catch (err) {
+//     res
+//       .status(500)
+//       .json({ error: "Lỗi máy chủ khi tìm khuyến mãi.", details: err.message });
+//   }
+// };
+// khuyenMai.controller.js
+
 export const timKhuyenMaiApDung = async (req, res) => {
-    try {
-        const { ngay, gio, soLuongVe, loaiHanhTrinh, datLanDau } = req.query;
+  try {
+    const { ngay, gio, soLuongVe, tongTien, datLanDau } = req.query;
+    const ngayChay = new Date(ngay);
+    // gioChay là số phút tính từ 00:00 (Ví dụ 01:00 = 60)
+    const gioChay = parseInt(gio, 10);
+    const soLuongVeChay = soLuongVe ? parseInt(soLuongVe, 10) : null;
+    const tongTienChay = tongTien ? parseInt(tongTien, 10) : 0;
+    const datLanDauChay = datLanDau === 'true';
 
-        const ngayChay = new Date(ngay);
-        const gioChay = parseInt(gio, 10);
-        const soLuongVeChay = soLuongVe ? parseInt(soLuongVe, 10) : null;
-        const loaiHanhTrinhChay = loaiHanhTrinh; 
-        const datLanDauChay = datLanDau === 'true'; 
-
-
-
+    // 1. Tìm các khuyến mãi Master còn hạn sử dụng
     const khuyenMaiCoHieuLuc = await KhuyenMai.find({
       trangThai: true,
       ngayBatDau: { $lte: ngayChay },
@@ -225,27 +287,43 @@ export const timKhuyenMaiApDung = async (req, res) => {
       return res.json({ success: true, data: [] });
     }
 
-    const khuyenMaiApDung = khuyenMaiCoHieuLuc.filter((km) => {
-      return km.lines.some((line) => {
+    // 2. Xử lý lọc chi tiết từng Line bên trong
+    const ketQua = khuyenMaiCoHieuLuc.reduce((acc, km) => {
+      // Convert document Mongoose sang Object thường để có thể ghi đè thuộc tính lines
+      const kmObject = km.toObject();
+
+      // Lọc danh sách lines: Chỉ giữ lại những line thỏa mãn TẤT CẢ điều kiện
+      const validLines = kmObject.lines.filter((line) => {
         if (!line.trangThai) return false;
 
+        // Nếu line không có điều kiện gì -> Luôn đúng
         if (!line.dieuKienApDung || line.dieuKienApDung.length === 0) {
           return true;
         }
 
+        // Kiểm tra từng điều kiện trong mảng điều kiện
         return line.dieuKienApDung.every((dk) => {
           switch (dk.loaiDieuKien) {
             case "GIO_THAP_DIEM":
               if (isNaN(gioChay)) return false;
-              return gioChay >= dk.gioBatDau && gioChay <= dk.gioKetThuc;
+              
+              // [FIX LOGIC 1] Xử lý khung giờ qua đêm (Ví dụ: 22:00 - 05:00)
+              if (dk.gioBatDau <= dk.gioKetThuc) {
+                // Trường hợp thường: 08:00 - 10:00
+                return gioChay >= dk.gioBatDau && gioChay <= dk.gioKetThuc;
+              } else {
+                // Trường hợp qua đêm: bắt đầu > kết thúc
+                // Hợp lệ nếu: (Giờ chọn >= Giờ bắt đầu) HOẶC (Giờ chọn <= Giờ kết thúc)
+                // Ví dụ: Range 22h-5h. Chọn 23h (đúng), Chọn 1h (đúng), Chọn 10h (sai)
+                return gioChay >= dk.gioBatDau || gioChay <= dk.gioKetThuc;
+              }
 
             case "SO_LUONG_VE":
               if (!soLuongVeChay || isNaN(soLuongVeChay)) return false;
               return soLuongVeChay >= dk.soLuongToiThieu;
 
-            case "LOAI_HANH_TRINH":
-              if (!loaiHanhTrinhChay) return false;
-              return loaiHanhTrinhChay === dk.loaiHanhTrinh;
+            case "TONG_TIEN_HOA_DON":
+              return tongTienChay >= (dk.tongTienToiThieu || 0);
 
             case "DAT_LAN_DAU":
               return datLanDauChay === true;
@@ -255,12 +333,19 @@ export const timKhuyenMaiApDung = async (req, res) => {
           }
         });
       });
-    });
 
-    res.json({ success: true, data: khuyenMaiApDung });
+      // [FIX LOGIC 2] Chỉ trả về Khuyến mãi nếu có ít nhất 1 line hợp lệ
+      if (validLines.length > 0) {
+        kmObject.lines = validLines; // Ghi đè lines gốc bằng lines đã lọc
+        acc.push(kmObject);
+      }
+
+      return acc;
+    }, []);
+
+    res.json({ success: true, data: ketQua });
   } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Lỗi máy chủ khi tìm khuyến mãi.", details: err.message });
+    console.error("Lỗi tìm khuyến mãi áp dụng:", err);
+    res.status(500).json({ error: "Lỗi máy chủ khi tìm khuyến mãi.", details: err.message });
   }
 };

@@ -265,6 +265,8 @@ export const toggleActiveStatus = async (req, res) => {
   }
 };
 
+// giaVe.controller.js
+
 export const timGiaVeApDung = async (req, res) => {
     try {
         const { tuyenDuongId, loaiXeId, ngayHienTai } = req.query;
@@ -277,7 +279,11 @@ export const timGiaVeApDung = async (req, res) => {
         }
 
         const currentDate = new Date(ngayHienTai);
+        
+        const dayIndex = currentDate.getDay(); 
+        const currentDayVN = dayIndex === 0 ? "8" : (dayIndex + 1).toString();
 
+        // 2. Tìm các bảng giá thỏa mãn điều kiện thời gian và active
         const cacBangGiaPhuHop = await GiaVe.find({
             active: true,
             thoiGianBatDau: { $lte: currentDate },
@@ -289,16 +295,36 @@ export const timGiaVeApDung = async (req, res) => {
                 },
             },
         })
-        .sort({ updatedAt: -1 });
+        .sort({ updatedAt: -1 }); // Lấy cái mới cập nhật nhất trước
 
-        if (cacBangGiaPhuHop.length === 0) {
+        // 3. Lọc lại theo logic tuanSuat (weekdays) và ngayApDung
+        // Mongoose trả về array, ta dùng JS để filter
+        const validBangGia = cacBangGiaPhuHop.filter(giaVe => {
+            // Nếu tần suất là 'all' -> Luôn đúng
+            if (giaVe.tuanSuat === 'all') return true;
+
+            // Nếu tần suất là 'weekdays' -> Check xem ngày hiện tại có được bật true không
+            if (giaVe.tuanSuat === 'weekdays') {
+                // Kiểm tra object ngayApDung. Ví dụ: { "2": true, "3": true, "7": false }
+                // Nếu không tồn tại ngayApDung hoặc ngày đó không true -> Loại
+                if (giaVe.ngayApDung && giaVe.ngayApDung[currentDayVN] === true) {
+                    return true;
+                }
+                return false;
+            }
+            
+            return false;
+        });
+
+        if (validBangGia.length === 0) {
             return res.status(200).json({ 
                 success: false, 
-                message: "Không tìm thấy giá vé phù hợp cho các tiêu chí đã chọn." 
+                message: "Không tìm thấy giá vé phù hợp cho ngày này (do cấu hình thứ trong tuần)." 
             });
         }
 
-        const bangGiaMoiNhat = cacBangGiaPhuHop[0];
+        // Lấy bảng giá ưu tiên nhất sau khi lọc
+        const bangGiaMoiNhat = validBangGia[0];
 
         const chiTietPhuHop = bangGiaMoiNhat.chiTietGiaVe.find(
             (ct) =>
@@ -307,7 +333,7 @@ export const timGiaVeApDung = async (req, res) => {
         );
 
         if (!chiTietPhuHop) {
-            return res.status(500).json({ success: false, message: "Lỗi logic: Không tìm thấy chi tiết giá vé dù đã khớp bảng giá." });
+            return res.status(500).json({ success: false, message: "Lỗi logic: Không tìm thấy chi tiết giá vé." });
         }
 
         res.json({ success: true, soTienThanhToan: chiTietPhuHop.soTienThanhToan });

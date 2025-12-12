@@ -44,6 +44,10 @@ const taiKhoanKhachHangSchema = new Schema(
       ref: 'KhachHang',
       required: true,
     },
+    soLuongVeDaDat:{
+      type: Number,
+      default: 0
+    },
     lichSuTimKiem: [lichSuTimKiemSchema]
   },
   { timestamps: true }

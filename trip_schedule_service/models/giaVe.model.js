@@ -25,7 +25,7 @@ const giaVeSchema = new mongoose.Schema(
     tenGiaVe: { type: String, required: true },
     tuanSuat: {
       type: String,
-      enum: ["all", "weekdays", "oddEven", "specific"],
+      enum: ["all", "weekdays"],
       required: true,
     },
     ngayApDung: {

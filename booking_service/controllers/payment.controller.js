@@ -273,7 +273,8 @@ export const createBookingAndPaymentUrl = async (req, res) => {
   session.startTransaction();
 
   try {
-    const { chiTiet, nhanVienTao, amount, nhanVienId, userId, maGiamGia } = req.body;
+    const { chiTiet, nhanVienTao, amount, nhanVienId, userId, maGiamGia } =
+      req.body;
     let ipAddr =
       req.headers["x-forwarded-for"] ||
       req.connection.remoteAddress ||
@@ -356,32 +357,34 @@ export const createBookingAndPaymentUrl = async (req, res) => {
 export const checkPaymentStatus = async (req, res) => {
   try {
     const { maHoaDon } = req.query;
-    
-    if (!maHoaDon) {  
-      return res.status(400).json({ 
-        success: false, 
-        message: "Thiếu mã hóa đơn" 
+
+    if (!maHoaDon) {
+      return res.status(400).json({
+        success: false,
+        message: "Thiếu mã hóa đơn",
       });
     }
 
-    const hoaDon = await HoaDon.findOne({ maHoaDon: maHoaDon }).populate("veXe");
+    const hoaDon = await HoaDon.findOne({ maHoaDon: maHoaDon }).populate(
+      "veXe"
+    );
 
     if (!hoaDon) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "Không tìm thấy hóa đơn", 
-        code: 404 
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy hóa đơn",
+        code: 404,
       });
     }
 
     const ticketData = hoaDon.veXe;
 
     if (!ticketData) {
-         return res.status(404).json({ 
-             success: false, 
-             message: "Hóa đơn tồn tại nhưng không tìm thấy vé xe liên kết.", 
-             code: 404 
-         });
+      return res.status(404).json({
+        success: false,
+        message: "Hóa đơn tồn tại nhưng không tìm thấy vé xe liên kết.",
+        code: 404,
+      });
     }
 
     res.status(200).json({
@@ -390,16 +393,15 @@ export const checkPaymentStatus = async (req, res) => {
       message: "Kiểm tra trạng thái thành công",
       trangThai: hoaDon.trangThai,
       maGiaoDichVNPAY: hoaDon.maGiaoDichVNPAY,
-      data: ticketData, 
+      data: ticketData,
     });
-
   } catch (error) {
     console.error("Check status error:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Lỗi server", 
-      error: error.message, 
-      code: 500 
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server",
+      error: error.message,
+      code: 500,
     });
   }
 };
@@ -410,10 +412,12 @@ export const filterHoaDon = async (req, res) => {
       ngayKetThuc,
       trangThai,
       donViThanhToan,
+      phuongThuc,
       sdt,
       page = 1,
       limit = 20,
     } = req.query;
+    console.log("Query ds chuyển khoản : ", req.query);
 
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
@@ -433,6 +437,11 @@ export const filterHoaDon = async (req, res) => {
     }
     if (donViThanhToan) {
       matchStage.donViThanhToan = donViThanhToan;
+    }
+
+    if (phuongThuc) {
+      const methods = phuongThuc.split(",").map((m) => m.trim());
+      matchStage.phuongThuc = { $in: methods };
     }
 
     // --- 2. Giai đoạn $match phụ (sau khi $lookup VeXe) ---

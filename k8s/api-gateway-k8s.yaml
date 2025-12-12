@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: api-gateway-container
-        image: asia-southeast1-docker.pkg.dev/smartbusproject-480408/smartbus-repo/api-gateway-service:v4.0.1
+        image: asia-southeast1-docker.pkg.dev/smartbusproject-480408/smartbus-repo/api-gateway-service:v8
         ports:
         - containerPort: 3000
         

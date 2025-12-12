@@ -1,8 +1,10 @@
 import VeXe from "../models/veXe.model.js";
 import HoaDon from "../models/hoaDon.model.js";
 import mongoose from "mongoose";
+import axios from 'axios';
 import moment from "moment";
 import Notification from "../models/notification.model.js";
+import { URL_TRIP_SERVICE } from "../config/env.js";
 import {
   publishEvent,
   publishSeatUpdateCommand,
@@ -144,6 +146,7 @@ export const createTicket = async (req, res) => {
     const {
       chiTiet,
       maGiamGia,
+      tenGiamGia,
       nhanVienTao,
       userId,
       email,
@@ -153,7 +156,6 @@ export const createTicket = async (req, res) => {
       departureDate,
       selectedPickup,
     } = req.body;
-    console.log("Request to create ticket:", req.body);
     if (!chiTiet || chiTiet.length === 0) {
       return res.status(400).json({
         success: false,
@@ -165,11 +167,13 @@ export const createTicket = async (req, res) => {
     const newTicket = new VeXe({
       maVe: generateMaVe(),
       maGiamGia: maGiamGia || null,
+      tenGiamGia: tenGiamGia || null,
       userId: userId || null,
       chiTiet: chiTiet.map((detail) => ({
         ...detail,
         nhanVienTao: nhanVienTao || null,
         maGiamGia: maGiamGia || null,
+        tenGiamGia: tenGiamGia || null,
         ngayKhoiHanh: detail.ngayKhoiHanh || ngayKhoiHanh,
         tuyenDuong: detail.tuyenDuong || routeId,
       })),
@@ -229,6 +233,19 @@ export const createTicket = async (req, res) => {
       if (chuyenXeId && seatsCount > 0) {
         console.log("Publishing seat update command to RabbitMQ...");
         publishSeatUpdateCommand(chuyenXeId, -seatsCount);
+      }
+      if (userId && seatsCount > 0) {
+        console.log(`Publishing user stats update: User ${userId}, +${seatsCount} tickets`);
+        publishEvent(
+          "UPDATE_USER_BOOKING_STATS",
+          {
+            userId: userId,
+            incrementAmount: seatsCount, 
+            action: "INCREMENT"
+          },
+          email || null,
+          firstDetail.soDienThoai || null
+        );
       }
       const eventPayload = {
         userId: savedTicket.userId,
@@ -353,8 +370,7 @@ export const updateMultipleTicketDetails = async (req, res) => {
   try {
 
     const { ticketId } = req.params;
-    const { updatesList, maGiamGia } = req.body;
-
+    const { updatesList, maGiamGia, tenGiamGia } = req.body;
     if (
       !mongoose.Types.ObjectId.isValid(ticketId) ||
       !Array.isArray(updatesList) ||
@@ -375,6 +391,24 @@ export const updateMultipleTicketDetails = async (req, res) => {
     }
     if (maGiamGia !== undefined) {
       ticket.maGiamGia = maGiamGia;
+      ticket.tenGiamGia = tenGiamGia || null;
+    }
+    const isPerformPayment = updatesList.some(item => 
+        item.updates && 
+        item.updates.hinhThucThanhToan && 
+        ['TAI_VAN_PHONG', 'DAI_LY', 'CHUYEN_KHOAN', 'VNPAY'].includes(item.updates.hinhThucThanhToan)
+    );
+    const isFullyPaid = ticket.trangThaiThanhToan === 'DA_THANH_TOAN';
+    const allowFinancialUpdate = isPerformPayment || isFullyPaid;
+
+    if (maGiamGia !== undefined) {
+        if (allowFinancialUpdate) {
+            ticket.maGiamGia = maGiamGia;
+            ticket.tenGiamGia = tenGiamGia || null; 
+        } else {
+            ticket.maGiamGia = null;
+            ticket.tenGiamGia = null;
+        }
     }
 
     const allowedUpdates = [
@@ -432,7 +466,7 @@ export const updateMultipleTicketDetails = async (req, res) => {
     await ticket.save();
     res.status(200).json({
       success: true,
-      message: "Cập nhật thông tin chi tiết vé thành công 1.",
+      message: "Cập nhật thông tin chi tiết vé thành công.",
       data: ticket,
       code: 200,
     });
@@ -544,11 +578,12 @@ export const createManualInvoice = async (req, res) => {
     soTien,
     nhanVienThuTien,
     donViThanhToan,
+    maGiamGia,
+    tenGiamGia,
     giaVeCoBan,
     phuThu,
     giamGia,
   } = req.body;
-  console.log("createManualInvoice req === ", req.body);
   const { ticketId } = req.params;
 
   const session = await mongoose.startSession();
@@ -574,6 +609,10 @@ export const createManualInvoice = async (req, res) => {
     const ticket = await VeXe.findById(ticketId).session(session);
     if (!ticket) {
       throw new Error("Không tìm thấy vé xe.");
+    }
+     if (maGiamGia !== undefined) {
+      ticket.maGiamGia = maGiamGia;
+      ticket.tenGiamGia = tenGiamGia || null;
     }
 
     for (const detailId of chiTietIds) {
@@ -1041,6 +1080,7 @@ export const filterVeXeMaster = async (req, res) => {
                 tongTien: { $first: "$tongTien" },
                 tongTienDaThanhToan: { $first: "$tongTienDaThanhToan" },
                 maGiamGia: { $first: "$maGiamGia" },
+                tenGiamGia: { $first: "$tenGiamGia" },
                 trangThaiThanhToan: { $first: "$trangThaiThanhToan" },
                 createdAt: { $first: "$createdAt" },
                 chiTiet: { $push: "$chiTiet" },
@@ -1099,44 +1139,232 @@ export const getTicketsByUserId = async (req, res) => {
   }
 };
 
+// export const printMultipleTickets = async (req, res) => {
+//   try {
+//     const { ticketDetails, tenLoaiXe } = req.body;
+
+//     if (!ticketDetails || !Array.isArray(ticketDetails) || ticketDetails.length === 0) {
+//       return res.status(400).json({ message: "Danh sách vé trống." });
+//     }
+
+//     let routeList = [];
+//     const routeDataString = await redisClient.get("danhsachtuyenduong");
+//     if (routeDataString) {
+//       try { routeList = JSON.parse(routeDataString); } catch (e) {}
+//     }
+
+//     const printDataList = ticketDetails.map((detail) => {
+//       const route = routeList.find(r => r._id === detail.tuyenDuong);
+//       const ngayKhoiHanh = moment(detail.ngayKhoiHanh);
+//       return {
+//         maVe: detail.hoaDon?.maHoaDon || detail.maVe || "---",
+//         tenTuyen: route ? route.tenTuyen : "Chưa cập nhật",
+//         gioDi: ngayKhoiHanh.format("HH:mm"),
+//         ngayDi: ngayKhoiHanh.format("DD/MM/YYYY"),
+//         soXe: detail.chuyenXe,
+//         loaiXe: tenLoaiXe || "Giường nằm",
+//         diemDon: detail.diemDonTC || detail.diemDon,
+//         diemTra: detail.diemTraTC || detail.diemTra,
+//         tenKhachHang: detail.tenKhachHang,
+//         soDienThoai: detail.soDienThoai,
+//         maChoNgoi: detail.maChoNgoi,
+//         giaVe: detail.giaVeCoBan,
+//         ghiChu: detail.ghiChu
+//       };
+//     });
+
+//     const doc = new PDFDocument({
+//       size: [227, 400], 
+//       margins: { top: 10, bottom: 10, left: 10, right: 10 },
+//       autoFirstPage: false 
+//     });
+
+//     res.setHeader("Content-Type", "application/pdf");
+//     res.setHeader("Content-Disposition", `inline; filename=tickets.pdf`);
+
+//     doc.pipe(res);
+
+//     const fontPath = path.join(__dirname, "../fonts/Roboto-Regular.ttf"); 
+    
+//     try {
+//         doc.font(fontPath);
+//     } catch (err) {
+//         console.warn("Không tìm thấy font tiếng Việt, dùng font mặc định:", err.message);
+//         // doc.font('Helvetica');
+//     }
+
+//     printDataList.forEach((data, index) => {
+//       doc.addPage();
+
+//       doc.fontSize(14).text("SmartBus", { align: "center" });
+//       doc.fontSize(9).text("Hotline: 1900 9999", { align: "center" });
+      
+//       doc.moveDown(0.5);
+//       drawLine(doc);
+//       doc.moveDown(0.5);
+
+//       doc.fontSize(13).text("Phiếu lên xe", { align: "center" });
+//       doc.fontSize(10).text(`Mã: ${data.maVe}`, { align: "center" });
+//       doc.moveDown(0.5);
+
+//       drawRow(doc, "Tuyến:", data.tenTuyen);
+//       drawRow(doc, "Xuất bến:", `${data.gioDi} - ${data.ngayDi}`);
+//       drawRow(doc, "Loại xe:", data.loaiXe);
+      
+//       doc.moveDown(0.5);
+//       doc.fontSize(10).text("Ghế:", { continued: true });
+//       doc.fontSize(16).text(`  ${data.maChoNgoi}`, { align: "right" }); 
+//       doc.moveDown(0.5);
+
+//       drawLine(doc); 
+
+//       doc.moveDown(0.5);
+//       drawRow(doc, "Khách:", data.tenKhachHang);
+//       drawRow(doc, "SĐT:", data.soDienThoai);
+//       drawRow(doc, "Điểm đón:", data.diemDon);
+//       drawRow(doc, "Điểm trả:", data.diemTra);
+  
+
+//       doc.moveDown(1);
+//       drawLine(doc);
+//       doc.moveDown(0.5);
+//       drawRowTongTien(doc, "Tổng cộng:", data.giaVe.toLocaleString('vi-VN') + 'VND');
+      
+
+//       doc.moveDown(1);
+//       doc.fontSize(8).text("Vui lòng đến trước giờ đi 15 phút.", { italic: true });
+//       doc.text("Chúc quý khách thượng lộ bình an!", { italic: true });
+//     });
+
+//     doc.end();
+
+//   } catch (error) {
+//     console.error("PDFKit Error:", error);
+//     if (!res.headersSent) {
+//         res.status(500).json({ message: "Lỗi tạo PDF: " + error.message });
+//     }
+//   }
+// };
+
 export const printMultipleTickets = async (req, res) => {
   try {
-    const { ticketDetails, tenLoaiXe } = req.body;
+    // 1. Nhận mảng ID chi tiết vé từ Frontend
+    const { chiTietIds } = req.body;
 
-    if (!ticketDetails || !Array.isArray(ticketDetails) || ticketDetails.length === 0) {
-      return res.status(400).json({ message: "Danh sách vé trống." });
+    if (!chiTietIds || !Array.isArray(chiTietIds) || chiTietIds.length === 0) {
+      return res.status(400).json({ message: "Vui lòng chọn ít nhất một vé để in." });
     }
 
+    // 2. Truy vấn DB Booking để lấy thông tin chi tiết vé chính xác nhất
+    // Sử dụng aggregate để "bóc tách" mảng chiTiet và lọc đúng các ID cần in
+    const ticketDetails = await VeXe.aggregate([
+      { $unwind: "$chiTiet" },
+      {
+        $match: {
+          "chiTiet._id": { $in: chiTietIds.map((id) => new mongoose.Types.ObjectId(id)) },
+        },
+      },
+      // Lookup hóa đơn để lấy mã hóa đơn (nếu cần)
+      {
+        $lookup: {
+          from: "hoadons",
+          localField: "chiTiet.hoaDon",
+          foreignField: "_id",
+          as: "hoaDonInfo",
+        },
+      },
+      {
+        $addFields: {
+          "chiTiet.hoaDon": { $arrayElemAt: ["$hoaDonInfo", 0] },
+          "chiTiet.maVeMaster": "$maVe" // Lấy mã vé master dự phòng
+        },
+      },
+      { $replaceRoot: { newRoot: "$chiTiet" } } // Đưa object chiTiet lên root
+    ]);
+
+    if (ticketDetails.length === 0) {
+      return res.status(404).json({ message: "Không tìm thấy thông tin vé." });
+    }
+
+    // 3. Lấy danh sách ID chuyến xe duy nhất để gọi sang Trip Service
+    const chuyenXeIds = [...new Set(ticketDetails.map((item) => item.chuyenXe))];
+    
+    // Map dữ liệu chuyến xe (Gọi sang Port 3001)
+    let tripsMap = {};
+    try {
+      // Gọi API nội bộ: getMultipleChuyenXeByIds đã có sẵn ở Trip Service
+      const tripResponse = await axios.post(`${URL_TRIP_SERVICE}/api/v1/chuyen-xe/get-by-ids`, {
+        ids: chuyenXeIds
+      });
+      
+      if (tripResponse.data.success) {
+        // Chuyển mảng chuyến xe thành Map để dễ lookup: { "idChuyen": { ...data } }
+        tripResponse.data.data.forEach(trip => {
+          tripsMap[trip._id] = trip;
+        });
+      }
+    } catch (error) {
+      console.error("Lỗi khi gọi Trip Service:", error.message);
+      // Không return lỗi, vẫn cho in nhưng thiếu thông tin xe
+    }
+
+    // 4. Lấy danh sách tuyến đường từ Redis (để lấy tên tuyến)
     let routeList = [];
-    const routeDataString = await redisClient.get("DanhSachTuyenDuong");
+    const routeDataString = await redisClient.get("danhsachtuyenduong");
     if (routeDataString) {
-      try { routeList = JSON.parse(routeDataString); } catch (e) {}
+      try {
+        routeList = JSON.parse(routeDataString);
+      } catch (e) {}
     }
 
+    // 5. Chuẩn bị dữ liệu in
     const printDataList = ticketDetails.map((detail) => {
-      const route = routeList.find(r => r._id === detail.tuyenDuong);
+      // Lấy thông tin chuyến từ Map đã fetch
+      const tripInfo = tripsMap[detail.chuyenXe] || {};
+      
+      // Lấy thông tin tuyến
+      // Ưu tiên lấy từ redis dựa trên ID tuyến lưu trong detail hoặc trong tripInfo
+      const routeId = detail.tuyenDuong || tripInfo.tuyenDuong;
+      const route = routeList.find((r) => r._id === routeId);
+
       const ngayKhoiHanh = moment(detail.ngayKhoiHanh);
+      
+      // Tính thực thu: (Giá gốc + Phụ thu) - Giảm giá
+      const giaGoc = detail.giaVeCoBan || 0;
+      const phuThu = detail.phuThu || 0;
+      const giamGia = detail.giamGia || 0;
+      const thucThu = (giaGoc + phuThu) - giamGia;
+
       return {
-        maVe: detail.hoaDon?.maHoaDon || detail.maVe || "---",
+        maVe: detail.hoaDon?.maHoaDon || detail.maVeMaster || "---", // Ưu tiên mã hóa đơn, nếu ko có thì dùng mã vé master
         tenTuyen: route ? route.tenTuyen : "Chưa cập nhật",
-        gioDi: ngayKhoiHanh.format("HH:mm"),
+        gioDi: tripInfo.gioKhoiHanh 
+          ? `${Math.floor(tripInfo.gioKhoiHanh / 60).toString().padStart(2, '0')}:${(tripInfo.gioKhoiHanh % 60).toString().padStart(2, '0')}`
+          : ngayKhoiHanh.format("HH:mm"),
         ngayDi: ngayKhoiHanh.format("DD/MM/YYYY"),
-        soXe: detail.chuyenXe,
-        loaiXe: tenLoaiXe || "Giường nằm",
+        soXe: tripInfo.xe?.bienSo || "Đang xếp", // Lấy từ Trip Service population
+        loaiXe: tripInfo.loaiXe?.tenLoaiXe || "Giường nằm", // Lấy từ Trip Service population
         diemDon: detail.diemDonTC || detail.diemDon,
         diemTra: detail.diemTraTC || detail.diemTra,
         tenKhachHang: detail.tenKhachHang,
         soDienThoai: detail.soDienThoai,
         maChoNgoi: detail.maChoNgoi,
-        giaVe: detail.giaVeCoBan,
-        ghiChu: detail.ghiChu
+        giaVe: thucThu, // Giá vé cuối cùng
+        ghiChu: detail.ghiChu,
+        // Thông tin chi tiết giá để hiển thị (tùy chọn)
+        chiTietGia: {
+            goc: giaGoc,
+            phuThu: phuThu,
+            giam: giamGia
+        }
       };
     });
 
+    // 6. Tạo PDF (Giữ nguyên logic layout của bạn)
     const doc = new PDFDocument({
-      size: [227, 400], 
+      size: [227, 450], // Tăng chiều dài một chút để chứa thêm thông tin nếu cần
       margins: { top: 10, bottom: 10, left: 10, right: 10 },
-      autoFirstPage: false 
+      autoFirstPage: false,
     });
 
     res.setHeader("Content-Type", "application/pdf");
@@ -1144,21 +1372,19 @@ export const printMultipleTickets = async (req, res) => {
 
     doc.pipe(res);
 
-    const fontPath = path.join(__dirname, "../fonts/Roboto-Regular.ttf"); 
-    
+    const fontPath = path.join(__dirname, "../fonts/Roboto-Regular.ttf");
     try {
-        doc.font(fontPath);
+      doc.font(fontPath);
     } catch (err) {
-        console.warn("Không tìm thấy font tiếng Việt, dùng font mặc định:", err.message);
-        // doc.font('Helvetica');
+      console.warn("Không tìm thấy font, dùng mặc định.");
     }
 
-    printDataList.forEach((data, index) => {
+    printDataList.forEach((data) => {
       doc.addPage();
 
       doc.fontSize(14).text("SmartBus", { align: "center" });
       doc.fontSize(9).text("Hotline: 1900 9999", { align: "center" });
-      
+
       doc.moveDown(0.5);
       drawLine(doc);
       doc.moveDown(0.5);
@@ -1169,44 +1395,50 @@ export const printMultipleTickets = async (req, res) => {
 
       drawRow(doc, "Tuyến:", data.tenTuyen);
       drawRow(doc, "Xuất bến:", `${data.gioDi} - ${data.ngayDi}`);
+      drawRow(doc, "Biển số:", data.soXe); // Đã sửa label thành Biển số cho rõ nghĩa
       drawRow(doc, "Loại xe:", data.loaiXe);
-      
+
       doc.moveDown(0.5);
       doc.fontSize(10).text("Ghế:", { continued: true });
-      doc.fontSize(16).text(`  ${data.maChoNgoi}`, { align: "right" }); 
+      doc.fontSize(16).text(`  ${data.maChoNgoi}`, { align: "right" });
       doc.moveDown(0.5);
 
-      drawLine(doc); 
+      drawLine(doc);
 
       doc.moveDown(0.5);
       drawRow(doc, "Khách:", data.tenKhachHang);
       drawRow(doc, "SĐT:", data.soDienThoai);
-      drawRow(doc, "Điểm đón:", data.diemDon);
-      drawRow(doc, "Điểm trả:", data.diemTra);
-  
+      // Giới hạn độ dài địa điểm đón trả để không bị vỡ layout
+      drawRow(doc, "Điểm đón:", truncateString(data.diemDon, 25)); 
+      drawRow(doc, "Điểm trả:", truncateString(data.diemTra, 25));
 
       doc.moveDown(1);
       drawLine(doc);
       doc.moveDown(0.5);
-      drawRowTongTien(doc, "Tổng cộng:", data.giaVe.toLocaleString('vi-VN') + 'VND');
       
+      // Hiển thị chi tiết giá nếu có giảm giá hoặc phụ thu
+      if(data.chiTietGia.giam > 0 || data.chiTietGia.phuThu > 0) {
+           drawRowSmall(doc, "Giá gốc:", data.chiTietGia.goc.toLocaleString("vi-VN"));
+           if(data.chiTietGia.phuThu > 0) drawRowSmall(doc, "Phụ thu:", "+" + data.chiTietGia.phuThu.toLocaleString("vi-VN"));
+           if(data.chiTietGia.giam > 0) drawRowSmall(doc, "Giảm giá:", "-" + data.chiTietGia.giam.toLocaleString("vi-VN"));
+           doc.moveDown(0.2);
+      }
+
+      drawRowTongTien(doc, "Thanh toán:", data.giaVe.toLocaleString("vi-VN") + "đ");
 
       doc.moveDown(1);
-      doc.fontSize(8).text("Vui lòng đến trước giờ đi 15 phút.", { italic: true });
-      doc.text("Chúc quý khách thượng lộ bình an!", { italic: true });
+      doc.fontSize(8).text("Vui lòng đến trước giờ đi 15 phút.", { italic: true, align: 'center' });
+      doc.text("Chúc quý khách thượng lộ bình an!", { italic: true, align: 'center' });
     });
 
     doc.end();
-
   } catch (error) {
     console.error("PDFKit Error:", error);
     if (!res.headersSent) {
-        res.status(500).json({ message: "Lỗi tạo PDF: " + error.message });
+      res.status(500).json({ message: "Lỗi tạo PDF: " + error.message });
     }
   }
 };
-
-
 function drawLine(doc) {
   const y = doc.y;
   doc.lineWidth(0.5)
@@ -1224,4 +1456,17 @@ function drawRowTongTien(doc, label, value) {
   const startY = doc.y;
   doc.fontSize(12).text(label, 10, startY, { width: 60, align: 'left', bold: true });
   doc.text(value, 70, startY, { width: 147, align: 'right' }); // 227 - 10 - 70
+}
+function truncateString(str, num) {
+  if (!str) return "";
+  if (str.length <= num) {
+    return str;
+  }
+  return str.slice(0, num) + "...";
+}
+function drawRowSmall(doc, label, value) {
+    const startY = doc.y;
+    doc.fontSize(8).text(label, 10, startY, { width: 60, align: "left", color: 'grey' });
+    doc.text(value, 70, startY, { width: 147, align: "right", color: 'grey' });
+    doc.fillColor('black'); // Reset color
 }
