@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: ai-service-container
-        image: asia-southeast1-docker.pkg.dev/smartbusproject-480408/smartbus-repo/ai-service:v8.4
+        image: asia-southeast1-docker.pkg.dev/smartbusproject-480408/smartbus-repo/ai-service:v8.6
         ports:
         - containerPort: 3006 
         envFrom:

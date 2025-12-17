@@ -1,7 +1,7 @@
 import VeXe from "../models/veXe.model.js";
 import HoaDon from "../models/hoaDon.model.js";
 import mongoose from "mongoose";
-import axios from 'axios';
+import axios from "axios";
 import moment from "moment";
 import Notification from "../models/notification.model.js";
 import { URL_TRIP_SERVICE } from "../config/env.js";
@@ -12,7 +12,7 @@ import {
 import redisClient from "../config/redis.js";
 import PDFDocument from "pdfkit";
 import path from "path";
-import { fileURLToPath } from 'url';
+import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -203,7 +203,7 @@ export const createTicket = async (req, res) => {
               : "TIEN_MAT",
           trangThai: "THANH_CONG",
           noiDungThanhToan: `Thanh toan khi dat ve ${newTicket.maVe}`,
-          nhanVienTaoHoaDon:  nhanVienTao,
+          nhanVienTaoHoaDon: nhanVienTao,
         });
         await newHoaDon.save({ session });
 
@@ -235,13 +235,15 @@ export const createTicket = async (req, res) => {
         publishSeatUpdateCommand(chuyenXeId, -seatsCount);
       }
       if (userId && seatsCount > 0) {
-        console.log(`Publishing user stats update: User ${userId}, +${seatsCount} tickets`);
+        console.log(
+          `Publishing user stats update: User ${userId}, +${seatsCount} tickets`
+        );
         publishEvent(
           "UPDATE_USER_BOOKING_STATS",
           {
             userId: userId,
-            incrementAmount: seatsCount, 
-            action: "INCREMENT"
+            incrementAmount: seatsCount,
+            action: "INCREMENT",
           },
           email || null,
           firstDetail.soDienThoai || null
@@ -287,12 +289,13 @@ export const createTicket = async (req, res) => {
         });
 
         const chuyenXeId = chiTiet[0].chuyenXe.toString();
-        
+
         req.io.to(chuyenXeId).emit("TRIP_UPDATED", {
           type: "NEW_BOOKING",
           maVe: savedTicket.maVe,
-          seats: chiTiet.map(ct => ct.maChoNgoi),
-          updatedAt: new Date()
+          seats: chiTiet.map((ct) => ct.maChoNgoi),
+          updatedAt: new Date(),
+          bookedBy: userId || nhanVienTao
         });
       }
     } catch (socketError) {
@@ -377,7 +380,6 @@ export const searchTickets = async (req, res) => {
  */
 export const updateMultipleTicketDetails = async (req, res) => {
   try {
-
     const { ticketId } = req.params;
     const { updatesList, maGiamGia, tenGiamGia } = req.body;
     if (
@@ -402,22 +404,25 @@ export const updateMultipleTicketDetails = async (req, res) => {
       ticket.maGiamGia = maGiamGia;
       ticket.tenGiamGia = tenGiamGia || null;
     }
-    const isPerformPayment = updatesList.some(item => 
-        item.updates && 
-        item.updates.hinhThucThanhToan && 
-        ['TAI_VAN_PHONG', 'DAI_LY', 'CHUYEN_KHOAN', 'VNPAY'].includes(item.updates.hinhThucThanhToan)
+    const isPerformPayment = updatesList.some(
+      (item) =>
+        item.updates &&
+        item.updates.hinhThucThanhToan &&
+        ["TAI_VAN_PHONG", "DAI_LY", "CHUYEN_KHOAN", "VNPAY"].includes(
+          item.updates.hinhThucThanhToan
+        )
     );
-    const isFullyPaid = ticket.trangThaiThanhToan === 'DA_THANH_TOAN';
+    const isFullyPaid = ticket.trangThaiThanhToan === "DA_THANH_TOAN";
     const allowFinancialUpdate = isPerformPayment || isFullyPaid;
 
     if (maGiamGia !== undefined) {
-        if (allowFinancialUpdate) {
-            ticket.maGiamGia = maGiamGia;
-            ticket.tenGiamGia = tenGiamGia || null; 
-        } else {
-            ticket.maGiamGia = null;
-            ticket.tenGiamGia = null;
-        }
+      if (allowFinancialUpdate) {
+        ticket.maGiamGia = maGiamGia;
+        ticket.tenGiamGia = tenGiamGia || null;
+      } else {
+        ticket.maGiamGia = null;
+        ticket.tenGiamGia = null;
+      }
     }
 
     const allowedUpdates = [
@@ -495,26 +500,124 @@ export const updateMultipleTicketDetails = async (req, res) => {
  * @access Admin
  * @body { chiTietIds: ["id1", "id2", ...] }
  */
+// export const cancelMultipleTicketDetails = async (req, res) => {
+//   try {
+//     const { ticketId } = req.params;
+//     const { chiTietIdsToCancel, reason } = req.body;
+
+//     if (
+//       !mongoose.Types.ObjectId.isValid(ticketId) ||
+//       !Array.isArray(chiTietIdsToCancel) ||
+//       chiTietIdsToCancel.length === 0
+//     ) {
+//       return res
+//         .status(400)
+//         .json({ success: false, message: "Dữ liệu đầu vào không hợp lệ." });
+//     }
+
+//     const ticket = await VeXe.findById(ticketId);
+//     if (!ticket) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "Không tìm thấy vé xe." });
+//     }
+
+//     let cancelledCount = 0;
+//     for (const detailId of chiTietIdsToCancel) {
+//       const chiTiet = ticket.chiTiet.id(detailId);
+//       if (chiTiet && chiTiet.trangThaiChiTiet !== "DA_HUY") {
+//         chiTiet.trangThaiChiTiet = "DA_HUY";
+//         chiTiet.lyDoHuy = reason || "Không rõ lý do";
+//         chiTiet.ngayHuy = new Date();
+//         cancelledCount++;
+//       }
+//     }
+
+//     if (cancelledCount > 0) {
+//       recalculateTongTien(ticket);
+//       await ticket.save();
+//     }
+
+//     try {
+//       // 2a. Gửi thông báo real-time đến Admin (Socket.IO)
+//       if (req.io) {
+//         req.io.emit("ticket_cancelled", {
+//           maVe: ticket.maVe,
+//           lyDo: reason,
+//           soLuongHuy: cancelledCount,
+//         });
+//       }
+
+//       // 2b. Lưu thông báo vào DB cho Người dùng (trên App)
+//       const userId = ticket.userId; // Lấy userId từ vé
+//       if (userId && cancelledCount > 0) {
+//         const newNotification = new Notification({
+//           userId: userId,
+//           title: "Hủy vé thành công",
+//           message: `Vé ${ticket.maVe} đã được hủy. Lý do: ${
+//             reason || "Không rõ lý do"
+//           }`,
+//           type: "trip",
+//         });
+//         await newNotification.save();
+//       }
+//     } catch (notifyError) {
+//       console.error("Lỗi khi tạo thông báo hủy vé:", notifyError);
+//       // Không làm gián đoạn response chính
+//     }
+
+//     res.status(200).json({
+//       success: true,
+//       message: `Hủy thành công ${cancelledCount} ghế.`,
+//       data: ticket,
+//       code: 200,
+//     });
+//   } catch (error) {
+//     console.error("Lỗi khi hủy nhiều chi tiết vé:", error);
+//     res
+//       .status(500)
+//       .json({ success: false, message: "Lỗi máy chủ.", code: 500 });
+//   }
+// };
 export const cancelMultipleTicketDetails = async (req, res) => {
   try {
     const { ticketId } = req.params;
     const { chiTietIdsToCancel, reason } = req.body;
 
+    // 1. Validate đầu vào cơ bản
     if (
       !mongoose.Types.ObjectId.isValid(ticketId) ||
       !Array.isArray(chiTietIdsToCancel) ||
       chiTietIdsToCancel.length === 0
     ) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Dữ liệu đầu vào không hợp lệ." });
+      return res.status(400).json({
+        success: false,
+        message: "Dữ liệu đầu vào không hợp lệ.",
+      });
     }
 
     const ticket = await VeXe.findById(ticketId);
     if (!ticket) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Không tìm thấy vé xe." });
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy vé xe.",
+      });
+    }
+
+    const activeDetails = ticket.chiTiet.filter(
+      (ct) => ct.trangThaiChiTiet !== "DA_HUY"
+    );
+
+    const isSelectAll = activeDetails.every((activeDetail) =>
+      chiTietIdsToCancel.includes(activeDetail._id.toString())
+    );
+
+    if (!isSelectAll) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Hệ thống không hỗ trợ hủy lẻ. Vui lòng chọn tất cả các ghế để hủy.",
+      });
     }
 
     let cancelledCount = 0;
@@ -530,11 +633,13 @@ export const cancelMultipleTicketDetails = async (req, res) => {
 
     if (cancelledCount > 0) {
       recalculateTongTien(ticket);
+
+      // ticket.trangThaiThanhToan = "DA_HUY"; // Tuỳ logic business của bạn
+
       await ticket.save();
     }
 
     try {
-      // 2a. Gửi thông báo real-time đến Admin (Socket.IO)
       if (req.io) {
         req.io.emit("ticket_cancelled", {
           maVe: ticket.maVe,
@@ -543,13 +648,12 @@ export const cancelMultipleTicketDetails = async (req, res) => {
         });
       }
 
-      // 2b. Lưu thông báo vào DB cho Người dùng (trên App)
-      const userId = ticket.userId; // Lấy userId từ vé
+      const userId = ticket.userId;
       if (userId && cancelledCount > 0) {
         const newNotification = new Notification({
           userId: userId,
           title: "Hủy vé thành công",
-          message: `Vé ${ticket.maVe} đã được hủy. Lý do: ${
+          message: `Vé ${ticket.maVe} đã được hủy toàn bộ. Lý do: ${
             reason || "Không rõ lý do"
           }`,
           type: "trip",
@@ -558,12 +662,11 @@ export const cancelMultipleTicketDetails = async (req, res) => {
       }
     } catch (notifyError) {
       console.error("Lỗi khi tạo thông báo hủy vé:", notifyError);
-      // Không làm gián đoạn response chính
     }
 
     res.status(200).json({
       success: true,
-      message: `Hủy thành công ${cancelledCount} ghế.`,
+      message: `Hủy thành công toàn bộ ${cancelledCount} ghế.`,
       data: ticket,
       code: 200,
     });
@@ -574,7 +677,6 @@ export const cancelMultipleTicketDetails = async (req, res) => {
       .json({ success: false, message: "Lỗi máy chủ.", code: 500 });
   }
 };
-
 /**
  * @desc [NÂNG CẤP MỚI NHẤT] Tạo hóa đơn và ghi nhận thanh toán thủ công.
  * Đồng thời cập nhật lại giá vé nếu có thay đổi từ frontend.
@@ -599,7 +701,6 @@ export const createManualInvoice = async (req, res) => {
   session.startTransaction();
 
   try {
-
     if (
       !["TAI_VAN_PHONG", "DAI_LY", "CHUYEN_KHOAN", "KHONG_THU_TIEN"].includes(
         phuongThuc
@@ -619,7 +720,7 @@ export const createManualInvoice = async (req, res) => {
     if (!ticket) {
       throw new Error("Không tìm thấy vé xe.");
     }
-     if (maGiamGia !== undefined) {
+    if (maGiamGia !== undefined) {
       ticket.maGiamGia = maGiamGia;
       ticket.tenGiamGia = tenGiamGia || null;
     }
@@ -1183,9 +1284,9 @@ export const getTicketsByUserId = async (req, res) => {
 //     });
 
 //     const doc = new PDFDocument({
-//       size: [227, 400], 
+//       size: [227, 400],
 //       margins: { top: 10, bottom: 10, left: 10, right: 10 },
-//       autoFirstPage: false 
+//       autoFirstPage: false
 //     });
 
 //     res.setHeader("Content-Type", "application/pdf");
@@ -1193,8 +1294,8 @@ export const getTicketsByUserId = async (req, res) => {
 
 //     doc.pipe(res);
 
-//     const fontPath = path.join(__dirname, "../fonts/Roboto-Regular.ttf"); 
-    
+//     const fontPath = path.join(__dirname, "../fonts/Roboto-Regular.ttf");
+
 //     try {
 //         doc.font(fontPath);
 //     } catch (err) {
@@ -1207,7 +1308,7 @@ export const getTicketsByUserId = async (req, res) => {
 
 //       doc.fontSize(14).text("SmartBus", { align: "center" });
 //       doc.fontSize(9).text("Hotline: 1900 9999", { align: "center" });
-      
+
 //       doc.moveDown(0.5);
 //       drawLine(doc);
 //       doc.moveDown(0.5);
@@ -1219,26 +1320,24 @@ export const getTicketsByUserId = async (req, res) => {
 //       drawRow(doc, "Tuyến:", data.tenTuyen);
 //       drawRow(doc, "Xuất bến:", `${data.gioDi} - ${data.ngayDi}`);
 //       drawRow(doc, "Loại xe:", data.loaiXe);
-      
+
 //       doc.moveDown(0.5);
 //       doc.fontSize(10).text("Ghế:", { continued: true });
-//       doc.fontSize(16).text(`  ${data.maChoNgoi}`, { align: "right" }); 
+//       doc.fontSize(16).text(`  ${data.maChoNgoi}`, { align: "right" });
 //       doc.moveDown(0.5);
 
-//       drawLine(doc); 
+//       drawLine(doc);
 
 //       doc.moveDown(0.5);
 //       drawRow(doc, "Khách:", data.tenKhachHang);
 //       drawRow(doc, "SĐT:", data.soDienThoai);
 //       drawRow(doc, "Điểm đón:", data.diemDon);
 //       drawRow(doc, "Điểm trả:", data.diemTra);
-  
 
 //       doc.moveDown(1);
 //       drawLine(doc);
 //       doc.moveDown(0.5);
 //       drawRowTongTien(doc, "Tổng cộng:", data.giaVe.toLocaleString('vi-VN') + 'VND');
-      
 
 //       doc.moveDown(1);
 //       doc.fontSize(8).text("Vui lòng đến trước giờ đi 15 phút.", { italic: true });
@@ -1261,7 +1360,9 @@ export const printMultipleTickets = async (req, res) => {
     const { chiTietIds } = req.body;
 
     if (!chiTietIds || !Array.isArray(chiTietIds) || chiTietIds.length === 0) {
-      return res.status(400).json({ message: "Vui lòng chọn ít nhất một vé để in." });
+      return res
+        .status(400)
+        .json({ message: "Vui lòng chọn ít nhất một vé để in." });
     }
 
     // 2. Truy vấn DB Booking để lấy thông tin chi tiết vé chính xác nhất
@@ -1270,7 +1371,9 @@ export const printMultipleTickets = async (req, res) => {
       { $unwind: "$chiTiet" },
       {
         $match: {
-          "chiTiet._id": { $in: chiTietIds.map((id) => new mongoose.Types.ObjectId(id)) },
+          "chiTiet._id": {
+            $in: chiTietIds.map((id) => new mongoose.Types.ObjectId(id)),
+          },
         },
       },
       // Lookup hóa đơn để lấy mã hóa đơn (nếu cần)
@@ -1285,10 +1388,10 @@ export const printMultipleTickets = async (req, res) => {
       {
         $addFields: {
           "chiTiet.hoaDon": { $arrayElemAt: ["$hoaDonInfo", 0] },
-          "chiTiet.maVeMaster": "$maVe" // Lấy mã vé master dự phòng
+          "chiTiet.maVeMaster": "$maVe", // Lấy mã vé master dự phòng
         },
       },
-      { $replaceRoot: { newRoot: "$chiTiet" } } // Đưa object chiTiet lên root
+      { $replaceRoot: { newRoot: "$chiTiet" } }, // Đưa object chiTiet lên root
     ]);
 
     if (ticketDetails.length === 0) {
@@ -1296,19 +1399,24 @@ export const printMultipleTickets = async (req, res) => {
     }
 
     // 3. Lấy danh sách ID chuyến xe duy nhất để gọi sang Trip Service
-    const chuyenXeIds = [...new Set(ticketDetails.map((item) => item.chuyenXe))];
-    
+    const chuyenXeIds = [
+      ...new Set(ticketDetails.map((item) => item.chuyenXe)),
+    ];
+
     // Map dữ liệu chuyến xe (Gọi sang Port 3001)
     let tripsMap = {};
     try {
       // Gọi API nội bộ: getMultipleChuyenXeByIds đã có sẵn ở Trip Service
-      const tripResponse = await axios.post(`${URL_TRIP_SERVICE}/api/v1/chuyen-xe/get-by-ids`, {
-        ids: chuyenXeIds
-      });
-      
+      const tripResponse = await axios.post(
+        `${URL_TRIP_SERVICE}/api/v1/chuyen-xe/get-by-ids`,
+        {
+          ids: chuyenXeIds,
+        }
+      );
+
       if (tripResponse.data.success) {
         // Chuyển mảng chuyến xe thành Map để dễ lookup: { "idChuyen": { ...data } }
-        tripResponse.data.data.forEach(trip => {
+        tripResponse.data.data.forEach((trip) => {
           tripsMap[trip._id] = trip;
         });
       }
@@ -1330,25 +1438,29 @@ export const printMultipleTickets = async (req, res) => {
     const printDataList = ticketDetails.map((detail) => {
       // Lấy thông tin chuyến từ Map đã fetch
       const tripInfo = tripsMap[detail.chuyenXe] || {};
-      
+
       // Lấy thông tin tuyến
       // Ưu tiên lấy từ redis dựa trên ID tuyến lưu trong detail hoặc trong tripInfo
       const routeId = detail.tuyenDuong || tripInfo.tuyenDuong;
       const route = routeList.find((r) => r._id === routeId);
 
       const ngayKhoiHanh = moment(detail.ngayKhoiHanh);
-      
+
       // Tính thực thu: (Giá gốc + Phụ thu) - Giảm giá
       const giaGoc = detail.giaVeCoBan || 0;
       const phuThu = detail.phuThu || 0;
       const giamGia = detail.giamGia || 0;
-      const thucThu = (giaGoc + phuThu) - giamGia;
+      const thucThu = giaGoc + phuThu - giamGia;
 
       return {
         maVe: detail.hoaDon?.maHoaDon || detail.maVeMaster || "---", // Ưu tiên mã hóa đơn, nếu ko có thì dùng mã vé master
         tenTuyen: route ? route.tenTuyen : "Chưa cập nhật",
-        gioDi: tripInfo.gioKhoiHanh 
-          ? `${Math.floor(tripInfo.gioKhoiHanh / 60).toString().padStart(2, '0')}:${(tripInfo.gioKhoiHanh % 60).toString().padStart(2, '0')}`
+        gioDi: tripInfo.gioKhoiHanh
+          ? `${Math.floor(tripInfo.gioKhoiHanh / 60)
+              .toString()
+              .padStart(2, "0")}:${(tripInfo.gioKhoiHanh % 60)
+              .toString()
+              .padStart(2, "0")}`
           : ngayKhoiHanh.format("HH:mm"),
         ngayDi: ngayKhoiHanh.format("DD/MM/YYYY"),
         soXe: tripInfo.xe?.bienSo || "Đang xếp", // Lấy từ Trip Service population
@@ -1362,10 +1474,10 @@ export const printMultipleTickets = async (req, res) => {
         ghiChu: detail.ghiChu,
         // Thông tin chi tiết giá để hiển thị (tùy chọn)
         chiTietGia: {
-            goc: giaGoc,
-            phuThu: phuThu,
-            giam: giamGia
-        }
+          goc: giaGoc,
+          phuThu: phuThu,
+          giam: giamGia,
+        },
       };
     });
 
@@ -1418,26 +1530,52 @@ export const printMultipleTickets = async (req, res) => {
       drawRow(doc, "Khách:", data.tenKhachHang);
       drawRow(doc, "SĐT:", data.soDienThoai);
       // Giới hạn độ dài địa điểm đón trả để không bị vỡ layout
-      drawRow(doc, "Điểm đón:", truncateString(data.diemDon, 25)); 
+      drawRow(doc, "Điểm đón:", truncateString(data.diemDon, 25));
       drawRow(doc, "Điểm trả:", truncateString(data.diemTra, 25));
 
       doc.moveDown(1);
       drawLine(doc);
       doc.moveDown(0.5);
-      
+
       // Hiển thị chi tiết giá nếu có giảm giá hoặc phụ thu
-      if(data.chiTietGia.giam > 0 || data.chiTietGia.phuThu > 0) {
-           drawRowSmall(doc, "Giá gốc:", data.chiTietGia.goc.toLocaleString("vi-VN"));
-           if(data.chiTietGia.phuThu > 0) drawRowSmall(doc, "Phụ thu:", "+" + data.chiTietGia.phuThu.toLocaleString("vi-VN"));
-           if(data.chiTietGia.giam > 0) drawRowSmall(doc, "Giảm giá:", "-" + data.chiTietGia.giam.toLocaleString("vi-VN"));
-           doc.moveDown(0.2);
+      if (data.chiTietGia.giam > 0 || data.chiTietGia.phuThu > 0) {
+        drawRowSmall(
+          doc,
+          "Giá gốc:",
+          data.chiTietGia.goc.toLocaleString("vi-VN")
+        );
+        if (data.chiTietGia.phuThu > 0)
+          drawRowSmall(
+            doc,
+            "Phụ thu:",
+            "+" + data.chiTietGia.phuThu.toLocaleString("vi-VN")
+          );
+        if (data.chiTietGia.giam > 0)
+          drawRowSmall(
+            doc,
+            "Giảm giá:",
+            "-" + data.chiTietGia.giam.toLocaleString("vi-VN")
+          );
+        doc.moveDown(0.2);
       }
 
-      drawRowTongTien(doc, "Thanh toán:", data.giaVe.toLocaleString("vi-VN") + "đ");
+      drawRowTongTien(
+        doc,
+        "Thanh toán:",
+        data.giaVe.toLocaleString("vi-VN") + "đ"
+      );
 
       doc.moveDown(1);
-      doc.fontSize(8).text("Vui lòng đến trước giờ đi 15 phút.", { italic: true, align: 'center' });
-      doc.text("Chúc quý khách thượng lộ bình an!", { italic: true, align: 'center' });
+      doc
+        .fontSize(8)
+        .text("Vui lòng đến trước giờ đi 15 phút.", {
+          italic: true,
+          align: "center",
+        });
+      doc.text("Chúc quý khách thượng lộ bình an!", {
+        italic: true,
+        align: "center",
+      });
     });
 
     doc.end();
@@ -1450,21 +1588,20 @@ export const printMultipleTickets = async (req, res) => {
 };
 function drawLine(doc) {
   const y = doc.y;
-  doc.lineWidth(0.5)
-     .moveTo(10, y) 
-     .lineTo(217, y) 
-     .stroke();
+  doc.lineWidth(0.5).moveTo(10, y).lineTo(217, y).stroke();
 }
 
 function drawRow(doc, label, value) {
   const startY = doc.y;
-  doc.fontSize(10).text(label, 10, startY, { width: 60, align: 'left' });
-  doc.text(value, 70, startY, { width: 147, align: 'right' }); // 227 - 10 - 70
+  doc.fontSize(10).text(label, 10, startY, { width: 60, align: "left" });
+  doc.text(value, 70, startY, { width: 147, align: "right" }); // 227 - 10 - 70
 }
 function drawRowTongTien(doc, label, value) {
   const startY = doc.y;
-  doc.fontSize(12).text(label, 10, startY, { width: 60, align: 'left', bold: true });
-  doc.text(value, 70, startY, { width: 147, align: 'right' }); // 227 - 10 - 70
+  doc
+    .fontSize(12)
+    .text(label, 10, startY, { width: 60, align: "left", bold: true });
+  doc.text(value, 70, startY, { width: 147, align: "right" }); // 227 - 10 - 70
 }
 function truncateString(str, num) {
   if (!str) return "";
@@ -1474,8 +1611,46 @@ function truncateString(str, num) {
   return str.slice(0, num) + "...";
 }
 function drawRowSmall(doc, label, value) {
-    const startY = doc.y;
-    doc.fontSize(8).text(label, 10, startY, { width: 60, align: "left", color: 'grey' });
-    doc.text(value, 70, startY, { width: 147, align: "right", color: 'grey' });
-    doc.fillColor('black'); // Reset color
+  const startY = doc.y;
+  doc
+    .fontSize(8)
+    .text(label, 10, startY, { width: 60, align: "left", color: "grey" });
+  doc.text(value, 70, startY, { width: 147, align: "right", color: "grey" });
+  doc.fillColor("black"); // Reset color
 }
+export const checkActiveTickets = async (req, res) => {
+  try {
+    const { chuyenXeId } = req.body;
+
+    if (!chuyenXeId) {
+      return res.status(400).json({ success: false, message: "Thiếu chuyenXeId" });
+    }
+
+    const activeTicket = await VeXe.findOne({
+      "chiTiet": {
+        $elemMatch: {
+          chuyenXe: chuyenXeId,
+          trangThaiChiTiet: { $in: ["DAT_CHO", "DA_THANH_TOAN", "DA_CHUYEN"] }
+        }
+      }
+    }).select("_id");
+
+    if (activeTicket) {
+      return res.status(200).json({
+        success: true,
+        hasActiveTickets: true,
+        message: "Chuyến xe đang có vé hoạt động."
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      hasActiveTickets: false,
+      message: "Chuyến xe không có vé hoạt động."
+    });
+
+  } catch (error) {
+    console.error("Lỗi check active tickets:", error);
+    res.status(500).json({ success: false, message: "Lỗi Server Booking" });
+  }
+};

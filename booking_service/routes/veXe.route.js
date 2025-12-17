@@ -15,13 +15,14 @@ import {
   filterVeXeMaster,
   getTicketsByUserId,
   printMultipleTickets,
+  checkActiveTickets
 } from "../controllers/veXe.controller.js";
 
 const veXeRouter = express.Router();
 
 veXeRouter.post("/", createTicket);
 veXeRouter.get("/tim-kiem", searchTickets);
-
+veXeRouter.post("/check-active-tickets", checkActiveTickets);
 veXeRouter.post("/in-ve", printMultipleTickets);
 veXeRouter.post("/filter-by-chuyen", filterVeXeMaster);
 veXeRouter.get("/chuyen-xe/:chuyenXeId", getTicketsByChuyenXeId);
