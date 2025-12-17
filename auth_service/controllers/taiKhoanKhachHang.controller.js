@@ -64,7 +64,8 @@ export const requestRegisterOtp = async (req, res) => {
       const existingKhachHangWithEmail = await KhachHang.findOne({ email });
       if (existingKhachHangWithEmail) {
         return res.status(400).json({
-          message: "Địa chỉ Email này đã được đăng ký. Vui lòng sử dụng Email khác.",
+          message:
+            "Địa chỉ Email này đã được đăng ký. Vui lòng sử dụng Email khác.",
         });
       }
     }
@@ -82,7 +83,7 @@ export const requestRegisterOtp = async (req, res) => {
       EX: OTP_EXPIRY_SECONDS,
     });
     if (method === "email") {
-       await sendOtpEmail(email, otp, "đăng ký tài khoản");
+      await sendOtpEmail(email, otp, "đăng ký tài khoản");
     }
 
     console.log(`[Register OTP] Sent to ${soDienThoai}: ${otp}`);
@@ -97,7 +98,7 @@ export const requestRegisterOtp = async (req, res) => {
 export const completeRegistration = async (req, res) => {
   try {
     const { soDienThoai, otp, hoVaTen, email, ngaySinh, gioiTinh } = req.body;
-    console.log("req.body on complete request: ",  req.body);
+    console.log("req.body on complete request: ", req.body);
     const redisKey = `otp:register:${soDienThoai}`;
     const storedOtp = await redisClient.get(redisKey);
     console.log("storedOtp từ redis register: ", storedOtp);
@@ -105,7 +106,7 @@ export const completeRegistration = async (req, res) => {
     if (!storedOtp) {
       return res.status(400).json({ message: "OTP đã hết hạn." });
     }
-    if (otp !== '032032') {
+    if (otp !== "032032") {
       if (storedOtp !== otp) {
         return res.status(400).json({ message: "Mã OTP không chính xác." });
       }
@@ -146,32 +147,40 @@ export const completeRegistration = async (req, res) => {
 
 export const requestLoginOtp = async (req, res) => {
   try {
-    const { soDienThoai, method } = req.body; 
+    const { soDienThoai, method } = req.body;
 
-    if (!soDienThoai) { 
-        return res.status(400).json({ message: "Vui lòng cung cấp số điện thoại." });
+    if (!soDienThoai) {
+      return res
+        .status(400)
+        .json({ message: "Vui lòng cung cấp số điện thoại." });
     }
 
     let identifier = soDienThoai;
     let recipientEmail = null;
 
     // 1. Tìm tài khoản bằng SĐT và populate thông tin Khách hàng
-    const account = await TaiKhoan.findOne({ soDienThoai }).populate('thongTinKhachHang');
+    const account = await TaiKhoan.findOne({ soDienThoai }).populate(
+      "thongTinKhachHang"
+    );
 
     if (!account) {
-        return res.status(404).json({ message: "Tài khoản không tồn tại. Vui lòng đăng ký." });
+      return res
+        .status(404)
+        .json({ message: "Tài khoản không tồn tại. Vui lòng đăng ký." });
     }
 
     // --- LOGIC XỬ LÝ KHI PHƯƠNG THỨC LÀ EMAIL ---
-    if (method === 'email') {
-        const khachHangInfo = account.thongTinKhachHang;
-        
-        if (!khachHangInfo || !khachHangInfo.email) {
-            return res.status(404).json({ message: "Tài khoản này chưa đăng ký Email hoặc thông tin bị thiếu." });
-        }
-        
-        recipientEmail = khachHangInfo.email;
-        identifier = recipientEmail; // Đổi identifier sang email để lưu trong Redis
+    if (method === "email") {
+      const khachHangInfo = account.thongTinKhachHang;
+
+      if (!khachHangInfo || !khachHangInfo.email) {
+        return res.status(404).json({
+          message: "Tài khoản này chưa đăng ký Email hoặc thông tin bị thiếu.",
+        });
+      }
+
+      recipientEmail = khachHangInfo.email;
+      identifier = recipientEmail; // Đổi identifier sang email để lưu trong Redis
     }
 
     // 2. Tạo OTP và lưu vào Redis với key là identifier (SĐT hoặc Email)
@@ -180,12 +189,14 @@ export const requestLoginOtp = async (req, res) => {
 
     await redisClient.set(redisKey, otp, { EX: OTP_EXPIRY_SECONDS });
 
-    if (method === 'email' && recipientEmail) {
-        await sendOtpEmail(recipientEmail, otp, "đăng nhập");
-        console.log(`[Login OTP] Sent to ${recipientEmail}: ${otp}`);
-        return res.status(200).json({ message: `OTP đăng nhập đã được gửi đến email ${recipientEmail}` });
+    if (method === "email" && recipientEmail) {
+      await sendOtpEmail(recipientEmail, otp, "đăng nhập");
+      console.log(`[Login OTP] Sent to ${recipientEmail}: ${otp}`);
+      return res.status(200).json({
+        message: `OTP đăng nhập đã được gửi đến email ${recipientEmail}`,
+      });
     }
-    
+
     console.log(`[Login OTP] Sent to ${soDienThoai}: ${otp}`);
     res.status(200).json({
       message: `OTP đăng nhập đã được gửi đến ${soDienThoai}`,
@@ -197,19 +208,27 @@ export const requestLoginOtp = async (req, res) => {
 
 export const verifyLoginOtp = async (req, res) => {
   try {
-    const { soDienThoai, otp, method } = req.body; 
+    const { soDienThoai, otp, method } = req.body;
 
     let identifier = soDienThoai;
-    
-    if (method === 'email') {
-        const account = await TaiKhoan.findOne({ soDienThoai }).populate('thongTinKhachHang');
-        if (!account || !account.thongTinKhachHang || !account.thongTinKhachHang.email) {
-             return res.status(404).json({ message: "Không tìm thấy tài khoản hoặc email liên kết." });
-        }
-        identifier = account.thongTinKhachHang.email;
+
+    if (method === "email") {
+      const account = await TaiKhoan.findOne({ soDienThoai }).populate(
+        "thongTinKhachHang"
+      );
+      if (
+        !account ||
+        !account.thongTinKhachHang ||
+        !account.thongTinKhachHang.email
+      ) {
+        return res
+          .status(404)
+          .json({ message: "Không tìm thấy tài khoản hoặc email liên kết." });
+      }
+      identifier = account.thongTinKhachHang.email;
     }
 
-    const redisKey = `otp:login:${identifier}`; 
+    const redisKey = `otp:login:${identifier}`;
     const storedOtp = await redisClient.get(redisKey);
     console.log(`[DEBUG] OTP từ App: ${otp} (Kiểu: ${typeof otp})`);
     console.log(
@@ -264,6 +283,7 @@ export const verifyLoginOtp = async (req, res) => {
       email: khachHangInfo.email,
       ngaySinh: khachHangInfo.ngaySinh,
       gioiTinh: khachHangInfo.gioiTinh,
+      soLuongVeDaDat: account.soLuongVeDaDat,
     });
   } catch (error) {
     res.status(500).json({ message: "Lỗi máy chủ", error: error.message });
@@ -432,22 +452,22 @@ export const clearSearchHistory = async (req, res) => {
     const userId = req.headers["x-user-id"] || req.user?.id;
 
     if (!userId) {
-      return res.status(401).json({ 
-        success: false, 
-        message: "Yêu cầu đăng nhập để thực hiện chức năng này." 
+      return res.status(401).json({
+        success: false,
+        message: "Yêu cầu đăng nhập để thực hiện chức năng này.",
       });
     }
 
     const updatedAccount = await TaiKhoan.findByIdAndUpdate(
       userId,
       { $set: { lichSuTimKiem: [] } },
-      { new: true } 
+      { new: true }
     );
 
     if (!updatedAccount) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "Không tìm thấy tài khoản khách hàng." 
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy tài khoản khách hàng.",
       });
     }
 
@@ -455,13 +475,103 @@ export const clearSearchHistory = async (req, res) => {
       success: true,
       message: "Đã xóa toàn bộ lịch sử tìm kiếm thành công.",
     });
-
   } catch (error) {
     console.error("Lỗi khi xóa lịch sử tìm kiếm:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Lỗi máy chủ.", 
-      error: error.message 
+    res.status(500).json({
+      success: false,
+      message: "Lỗi máy chủ.",
+      error: error.message,
     });
+  }
+};
+
+export const verifyOtpCus = async (req, res) => {
+  try {
+    const { soDienThoai, otp } = req.body;
+
+    // 1. Kiểm tra đầu vào
+    if (!soDienThoai || !otp) {
+      return res
+        .status(400)
+        .json({ message: "Vui lòng cung cấp số điện thoại và mã OTP." });
+    }
+
+    // 2. Lấy OTP từ Redis
+    const identifier = soDienThoai;
+    const redisKey = `otp:login:${identifier}`;
+
+    const storedOtp = await redisClient.get(redisKey);
+
+    console.log(`[DEBUG] OTP từ App: ${otp}`);
+    console.log(`[DEBUG] OTP từ Redis: ${storedOtp}`);
+
+    // 3. Kiểm tra xem người dùng đã Request OTP chưa (Redis có dữ liệu không)
+    // Bắt buộc phải request trước thì mới cho verify (kể cả dùng mã backdoor)
+    if (!storedOtp) {
+      return res
+        .status(400)
+        .json({ message: "OTP đã hết hạn hoặc chưa được gửi." });
+    }
+
+    // 4. SO SÁNH OTP (Logic bạn yêu cầu)
+    // Chuyển hết về String để so sánh an toàn
+    const inputOtp = otp.toString();
+    const realOtp = storedOtp.toString();
+    const hardcodedOtp = "032032";
+
+    // Điều kiện đúng: Nhập đúng OTP thật HOẶC Nhập đúng OTP cứng
+    const isValid = inputOtp === realOtp || inputOtp === hardcodedOtp;
+
+    if (!isValid) {
+      return res.status(400).json({ message: "Mã OTP không chính xác." });
+    }
+
+    // 5. Xóa OTP sau khi verify thành công
+    await redisClient.del(redisKey);
+
+    // 6. Trả về thành công
+    res.status(200).json({
+      success: true,
+      message: "Xác thực OTP thành công!",
+      soDienThoai: soDienThoai,
+    });
+  } catch (error) {
+    console.error("Lỗi verify OTP:", error);
+    res.status(500).json({ message: "Lỗi máy chủ", error: error.message });
+  }
+};
+
+export const requestOtpCus = async (req, res) => {
+  try {
+    const { soDienThoai } = req.body;
+
+    // 1. Kiểm tra đầu vào
+    if (!soDienThoai) {
+      return res
+        .status(400)
+        .json({ message: "Vui lòng cung cấp số điện thoại." });
+    }
+
+    // 2. Tạo OTP
+    const otp = generateOTP();
+
+    // Key Redis phải khớp với hàm verifyLoginOtp bạn vừa sửa
+    // (Ở hàm verify bạn dùng `otp:login:${soDienThoai}`)
+    const redisKey = `otp:login:${soDienThoai}`;
+
+    // 3. Lưu vào Redis
+    await redisClient.set(redisKey, otp, { EX: OTP_EXPIRY_SECONDS });
+
+    // 4. "Gửi" OTP (Log ra console để test)
+    console.log(`[Login OTP] Sent to ${soDienThoai}: ${otp}`);
+
+    // 5. Trả về thành công
+    res.status(200).json({
+      success: true,
+      message: `OTP xác thực đã được gửi đến ${soDienThoai}`,
+    });
+  } catch (error) {
+    console.error("Lỗi request OTP:", error);
+    res.status(500).json({ message: "Lỗi máy chủ", error: error.message });
   }
 };

@@ -2,7 +2,7 @@
 import axios from "axios";
 
 // 1. Dùng KEY của bạn (Gắn cứng để test)
-const API_KEY = "AIzaSyDr8WXbSULWRMAvKvfhV98iSkWKuLZSX_s";
+const API_KEY = "AIzaSyBSGG3Ab6c8jrgkjpLhrYrNFVPVEYhfMvs";
 
 // Thêm đuôi -001 vào sau tên model
 const URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${API_KEY}`;

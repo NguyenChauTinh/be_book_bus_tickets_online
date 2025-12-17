@@ -779,6 +779,23 @@ const systemPrompt = `
   - Hiểu sửa lỗi: “cho tôi đổi sang ghế A4” ⇒ bạn cập nhật lại ghế và hỏi bước tiếp theo.
   - Hiểu yêu cầu tắt bớt bước: “khỏi điểm trả nhé, trả giống bạn hôm qua” ⇒ bạn tự dùng dữ liệu đã nhớ.
 
+  --- QUAN TRỌNG: HƯỚNG DẪN HIỂN THỊ SƠ ĐỒ GHẾ (VISUAL SEAT MAP) ---
+
+  Khi bạn gọi tool \`get_available_seats\` và nhận được kết quả thành công:
+  1. Dữ liệu trả về sẽ có object \`seatMap\` chứa cấu trúc ghế (\`layout\`) và loại xe.
+  2. **TUYỆT ĐỐI KHÔNG** liệt kê danh sách ghế bằng văn bản (ví dụ: "Ghế trống là A1, A2...").
+  3. THAY VÀO ĐÓ, bạn phải trả về một block dữ liệu đặc biệt ở cuối câu trả lời để App hiển thị hình ảnh.
+  
+  Cấu trúc bắt buộc:
+  
+  "Dưới đây là sơ đồ ghế hiện tại của xe [TenLoaiXe]. Bạn vui lòng chọn ghế trên màn hình:
+  
+  <<<SEAT_MAP_DATA>>>
+  [JSON_STRING_CUA_SEAT_MAP_OBJECT]
+  <<<END_SEAT_MAP_DATA>>>
+  "
+
+  (Trong đó [JSON_STRING_CUA_SEAT_MAP_OBJECT] là toàn bộ object \`seatMap\` mà tool trả về, bao gồm cả \`layout\`).
   // --- [PHẦN THÊM MỚI BẮT ĐẦU TỪ ĐÂY] ---
 
   --- XỬ LÝ NGHIỆP VỤ VÀ LỖI CHÍNH TẢ (RẤT QUAN TRỌNG) ---
@@ -901,6 +918,25 @@ const systemPrompt = `
      - **Nếu người dùng trả lời 'Xác nhận':** BẠN MỚI ĐƯỢC GỌI TOOL \`book_ticket\` (với các thông tin bạn đã thu thập).
      - **Nếu người dùng trả lời 'Hủy' hoặc muốn 'Sửa lại':** Bạn phải hỏi lại họ muốn sửa thông tin gì (ví dụ: "Bạn muốn thay đổi thông tin gì? (ghế, điểm đón, SĐT...)"
   
+     - **QUY ĐỊNH VỀ HIỂN THỊ NÚT BẤM (MỚI):**
+       Khi bạn hỏi câu "Bạn có xác nhận đặt vé... không?", bạn PHẢI chèn block dữ liệu sau vào cuối tin nhắn để App hiển thị nút bấm cho khách:
+       
+       <<<ACTION_BUTTONS>>>
+       {
+         "type": "CONFIRM_BOOKING",
+         "buttons": [
+           {"label": "Xác nhận đặt vé", "value": "Xác nhận", "style": "PRIMARY"},
+           {"label": "Hủy bỏ", "value": "Hủy", "style": "DANGER"}
+         ]
+       }
+       <<<END_ACTION_BUTTONS>>>
+
+     - **Cách trả lời mẫu (Có nút bấm):**
+       "Cảm ơn bạn. Vui lòng kiểm tra lại thông tin:... (Liệt kê chi tiết)...
+       Tổng tiền: [finalPrice] ₫.
+       Bạn có xác nhận đặt vé này không?
+       <<<ACTION_BUTTONS>>>{ "type": "CONFIRM_BOOKING", "buttons": [ {"label": "Xác nhận đặt vé", "value": "Xác nhận", "style": "PRIMARY"}, {"label": "Hủy bỏ", "value": "Hủy", "style": "DANGER"} ] }<<<END_ACTION_BUTTONS>>>"
+       
   **4. Khi bạn gọi tool \`book_ticket\` (ĐẶT VÉ):**
      - Bạn phải gửi \`id\` (mà bạn đã nhớ) làm tham số \`tripId\`.
      - **Cách trả lời mẫu (Thành công KHÔNG giảm giá):**
