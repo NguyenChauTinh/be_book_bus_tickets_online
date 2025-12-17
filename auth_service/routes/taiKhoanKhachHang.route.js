@@ -18,11 +18,13 @@ taiKhoanKHRouter.post("/login/verify", authController.verifyLoginOtp);
 taiKhoanKHRouter.post("/xoa-lich-su", authController.clearSearchHistory);
 taiKhoanKHRouter.post("/check/request-otp", authController.requestOtp);
 taiKhoanKHRouter.post("/check/verify", authController.verifyOtp);
+taiKhoanKHRouter.post("/check/request-otp-cus", authController.requestOtpCus);
+taiKhoanKHRouter.post("/check/verify-cus", authController.verifyOtpCus);
 
 taiKhoanKHRouter.post("/logout", authMiddleware, authController.logout);
 taiKhoanKHRouter.get(
-  "/recent-searches", 
-  authMiddleware, 
+  "/recent-searches",
+  authMiddleware,
   authController.getRecentSearches
 );
 taiKhoanKHRouter.post("/profiles/batch", authController.getProfilesByIds);
