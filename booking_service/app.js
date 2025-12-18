@@ -15,6 +15,7 @@ import paymentRouter from "./routes/payment.route.js";
 import notificationRouter from "./routes/notification.route.js";
 import baoCaoRouter from "./routes/baoCao.route.js";
 import { connectRabbitMQ } from "./utils/rabbitmq.helper.js";
+import analyticsRouter from "./routes/analytics.route.js";
 
 dotenv.config();
 
@@ -178,6 +179,7 @@ app.use("/api/v1/ve-xe", veXeRouter);
 app.use("/api/v1/payment", paymentRouter);
 app.use("/api/v1/notifications", notificationRouter);
 app.use("/api/v1/bao-cao", baoCaoRouter);
+app.use("/api/v1/analytics", analyticsRouter);
 
 const startServer = async () => {
   try {
