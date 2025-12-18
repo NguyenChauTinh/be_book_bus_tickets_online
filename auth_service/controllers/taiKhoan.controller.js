@@ -55,16 +55,20 @@ const sendOtpEmail = async (email, otp, actionName) => {
 };
 const REDIS_TAIKHOAN_KEY = "danhsachtaikhoan";
 
-const signToken = (userId, tenTaiKhoan, tenNhanVien) => {
-  return jwt.sign({ userId, tenTaiKhoan, tenNhanVien }, JWT_SECRET, {
+const signToken = (userId, tenTaiKhoan, tenNhanVien, phanQuyen) => {
+  return jwt.sign({ userId, tenTaiKhoan, tenNhanVien, phanQuyen }, JWT_SECRET, {
     expiresIn: JWT_EXPIRES_IN,
   });
 };
 
-const signRefreshToken = (userId, tenTaiKhoan, tenNhanVien) => {
-  return jwt.sign({ userId, tenTaiKhoan, tenNhanVien }, JWT_REFRESH_SECRET, {
-    expiresIn: JWT_REFRESH_EXPIRES_IN,
-  });
+const signRefreshToken = (userId, tenTaiKhoan, tenNhanVien, phanQuyen) => {
+  return jwt.sign(
+    { userId, tenTaiKhoan, tenNhanVien, phanQuyen },
+    JWT_REFRESH_SECRET,
+    {
+      expiresIn: JWT_REFRESH_EXPIRES_IN,
+    }
+  );
 };
 
 export const dangKy = async (req, res) => {
@@ -175,15 +179,18 @@ export const dangNhap = async (req, res) => {
         });
       }
     }
+
     const token = signToken(
       taiKhoan._id,
       taiKhoan.tenTaiKhoan,
-      taiKhoan.nhanVien.tenNhanVien
+      taiKhoan.nhanVien.tenNhanVien,
+      JSON.stringify(taiKhoan.vaiTro[0].phanQuyen)
     );
     const refreshToken = signRefreshToken(
       taiKhoan._id,
       taiKhoan.tenTaiKhoan,
-      taiKhoan.nhanVien.tenNhanVien
+      taiKhoan.nhanVien.tenNhanVien,
+      JSON.stringify(taiKhoan.vaiTro[0].phanQuyen)
     );
     const sessionKey = `session:${taiKhoan._id}`;
 
@@ -297,12 +304,14 @@ export const verifyLoginOtp = async (req, res) => {
     const token = signToken(
       taiKhoan._id,
       taiKhoan.tenTaiKhoan,
-      taiKhoan.nhanVien.tenNhanVien
+      taiKhoan.nhanVien.tenNhanVien,
+      JSON.stringify(taiKhoan.vaiTro[0].phanQuyen)
     );
     const refreshToken = signRefreshToken(
       taiKhoan._id,
       taiKhoan.tenTaiKhoan,
-      taiKhoan.nhanVien.tenNhanVien
+      taiKhoan.nhanVien.tenNhanVien,
+      JSON.stringify(taiKhoan.vaiTro[0].phanQuyen)
     );
     const sessionKey = `session:${taiKhoan._id}`;
 
@@ -332,71 +341,7 @@ export const verifyLoginOtp = async (req, res) => {
     });
   }
 };
-// export const dangNhap = async (req, res) => {
-//   try {
-//     const { tenTaiKhoan, matKhau } = req.body;
 
-//     const taiKhoan = await TaiKhoan.findOne({ tenTaiKhoan }).populate([
-//       { path: "nhanVien" },
-//       {
-//         path: "vaiTro",
-//         populate: {
-//           path: "phanQuyen",
-//           model: "Quyen",
-//         },
-//       },
-//     ]);
-//     if (!taiKhoan || !taiKhoan.trangThai) {
-//       return res.status(401).json({
-//         success: false,
-//         message: "Tên tài khoản không tồn tại hoặc tài khoản đã bị khóa.",
-//       });
-//     }
-//     const matKhauChinhXac = await bcrypt.compare(matKhau, taiKhoan.matKhau);
-//     if (!matKhauChinhXac) {
-//       return res.status(401).json({
-//         success: false,
-//         message: "Sai mật khẩu.",
-//       });
-//     }
-
-//     const token = signToken(
-//       taiKhoan._id,
-//       taiKhoan.tenTaiKhoan,
-//       taiKhoan.nhanVien
-//     );
-//     const refreshToken = signRefreshToken(taiKhoan._id);
-
-//     const sessionKey = `session:${taiKhoan._id}`;
-
-//     await redisClient.set(sessionKey, "active", {
-//       EX: SESSION_EXPIRY_SECONDS,
-//     });
-
-//     res.cookie("refreshToken", refreshToken, {
-//       httpOnly: true,
-//       secure: process.env.NODE_ENV === "production" ? true : false,
-//       sameSite: "strict",
-//       maxAge: 7 * 24 * 60 * 60 * 1000,
-//     });
-
-//     res.status(200).json({
-//       success: true,
-//       message: "Đăng nhập thành công!",
-//       data: {
-//         taiKhoan,
-//         accessToken: token,
-//         refreshToken: refreshToken,
-//       },
-//     });
-//   } catch (error) {
-//     res.status(500).json({
-//       success: false,
-//       message: "Lỗi server khi đăng nhập.",
-//       error: error.message,
-//     });
-//   }
-// };
 export const doiMatKhau = async (req, res) => {
   try {
     const { id } = req.params;

@@ -2,7 +2,7 @@
 import express from "express";
 import cors from "cors";
 
-import { PORT } from "./config/env.js";
+import { PORT, API_GEMINI_KEY } from "./config/env.js";
 import processMessage from "./geminiService.be.js";
 
 const app = express();
@@ -40,5 +40,6 @@ app.post("/api/v1/chat", async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Chat server đang chạy trên cổng ${PORT}`);
+  console.log(`API KEY : `, API_GEMINI_KEY);
 });
 

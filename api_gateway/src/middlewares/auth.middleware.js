@@ -14,6 +14,17 @@ const authMiddleware = async (req, res, next) => {
     return next();
   }
 
+  if (
+    req.method == "OPTIONS" ||
+    req.path == "/" ||
+    req.path == "/info" ||
+    req.path == "/health" ||
+    req.path.startsWith("/favicon.ico") ||
+    req.path.startsWith("/socket.io")
+  ) {
+    return next();
+  }
+
   const publicPaths = [
     "/api/v1/tai-khoan/dang-nhap",
     "/api/v1/tai-khoan/verify-otp",
@@ -52,7 +63,9 @@ const authMiddleware = async (req, res, next) => {
   try {
     const verified = jwt.verify(token, env.JWT_SECRET);
 
-    const userId = verified.userId || verified.id;
+    const userId = verified.userId;
+    const role = verified.phanQuyen;
+    const userName = verified.tenNhanVien;
     const sessionKey = `session:${userId}`;
     const sessionExists = await redisClient.get(sessionKey);
 
@@ -63,9 +76,10 @@ const authMiddleware = async (req, res, next) => {
       });
     }
 
-    req.headers["x-user-id"] = userId;
-    req.headers["x-user-role"] = verified.role || "user";
-    req.headers["x-user-email"] = verified.email || "";
+    req.headers["x-user-id"] = String(userId || "");
+    req.headers["x-user-role"] = String(role || "");
+    req.headers["x-user-name"] = encodeURIComponent(userName || "Unknown");
+    req.headers["x-user-username"] = String(verified.tenTaiKhoan || "");
 
     next();
   } catch (err) {

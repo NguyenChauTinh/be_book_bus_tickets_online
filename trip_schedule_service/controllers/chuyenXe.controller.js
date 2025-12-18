@@ -1,7 +1,7 @@
 import ChuyenXe from "../models/chuyenXe.model.js";
 import axios from "axios";
 
-import {URL_BOOKING_SERVICE, GIAVE_API_URL} from "../config/env.js";
+import { URL_BOOKING_SERVICE, GIAVE_API_URL } from "../config/env.js";
 import { publishSearchHistoryEvent } from "../utils/rabbitmq.helper.js";
 import DiaDiem from "../models/diaDiem.model.js";
 import { getTuyenDuongByIdInternal } from "./tuyenDuong.controller.js";
@@ -65,7 +65,8 @@ export const getDanhSachChuyenXeTheoNgay = async (req, res) => {
     // Bước 1: Lấy danh sách chuyến xe gốc
     const trips = await ChuyenXe.find({
       ngayKhoiHanh: { $gte: startOfDay, $lte: endOfDay },
-    }).populate("loaiXe")
+    })
+      .populate("loaiXe")
       .sort({ gioKhoiHanh: 1 })
       .lean();
 
@@ -149,20 +150,77 @@ export const updateTrangThaiChuyenXe = async (req, res) => {
   try {
     const { id } = req.params;
     const { trangThai } = req.body;
-    const updateData = { trangThai };
-
-    if (trangThai === "DA_XUAT_BEN") {
-      const existingTrip = await ChuyenXe.findById(id);
-      if (existingTrip && existingTrip.trangThai === "CHUA_XUAT_BEN") {
-        updateData.thoiGianXuatBenThucTe = new Date();
-      }
-    } else if (trangThai === "HUY_CHUYEN") {
-      updateData.thoiGianHuyChuyen = new Date();
+    
+    const trip = await ChuyenXe.findById(id);
+    if (!trip) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy chuyến xe." });
     }
+    if (trangThai === "HUY_CHUYEN") {
+      try {
+        const checkResponse = await axios.post(
+          `${URL_BOOKING_SERVICE}/api/v1/ve-xe/check-active-tickets`,
+          {
+            chuyenXeId: id,
+          }
+        );
 
-    const updatedTrip = await ChuyenXe.findByIdAndUpdate(id, updateData, {
-      new: true,
-    });
+        if (checkResponse.data && checkResponse.data.hasActiveTickets) {
+          return res.status(400).json({
+            success: false,
+            message:
+              "Không thể hủy chuyến xe này vì đang có hành khách đặt vé. Vui lòng xử lý vé trước.",
+          });
+        }
+      } catch (serviceError) {
+        console.error("Lỗi gọi Booking Service:", serviceError.message);
+        return res.status(500).json({
+          success: false,
+          message:
+            "Lỗi kết nối đến hệ thống vé. Không thể xác thực trạng thái vé để hủy chuyến.",
+        });
+      }
+
+      trip.thoiGianHuyChuyen = new Date();
+    } else if (trangThai === "DA_XUAT_BEN") {
+      const now = new Date();
+      const vnTimeStr = now.toLocaleString("en-US", {
+        timeZone: "Asia/Ho_Chi_Minh",
+      });
+      const currentVnTime = new Date(vnTimeStr);
+      const tripDate = new Date(trip.ngayKhoiHanh);
+
+      const departureVnTime = new Date(currentVnTime);
+      departureVnTime.setFullYear(tripDate.getUTCFullYear());
+      departureVnTime.setMonth(tripDate.getUTCMonth());
+      departureVnTime.setDate(tripDate.getUTCDate());
+      departureVnTime.setHours(0, 0, 0, 0);
+      departureVnTime.setMinutes(
+        departureVnTime.getMinutes() + trip.gioKhoiHanh
+      );
+
+      console.log(`Hiện tại (VN): ${currentVnTime.toLocaleString()}`);
+      console.log(`Giờ khởi hành (VN): ${departureVnTime.toLocaleString()}`);
+
+      if (currentVnTime < departureVnTime) {
+        const departureHour = Math.floor(trip.gioKhoiHanh / 60);
+        const departureMinute = trip.gioKhoiHanh % 60;
+        const timeString = `${String(departureHour).padStart(2, "0")}:${String(
+          departureMinute
+        ).padStart(2, "0")}`;
+
+        return res.status(200).json({
+          success: false,
+          message: `Chưa đến ngày và giờ khởi hành (${timeString}). Không thể xuất bến sớm hơn quy định.`,
+        });
+      }
+      if (trip.trangThai === "CHUA_XUAT_BEN") {
+        trip.thoiGianXuatBenThucTe = new Date();
+      }
+    }
+    trip.trangThai = trangThai;
+    const updatedTrip = await trip.save();
 
     res.status(200).json({
       message: "Cập nhật trạng thái chuyến xe thành công.",
@@ -244,7 +302,6 @@ export const getDanhSachChuyenXeFilter = async (req, res) => {
   }
 };
 
-
 export const getDanhSachChuyenXeTheoNgayVaDiaDiem = async (req, res) => {
   try {
     const userId = req.headers["x-user-id"];
@@ -300,16 +357,14 @@ export const getDanhSachChuyenXeTheoNgayVaDiaDiem = async (req, res) => {
 
     const enrichedTripsPromises = trips.map(async (trip) => {
       const soVeConLai = trip.soLuongVe || 0;
-      
+
       let tuyenDuongData = trip.tuyenDuong;
-      
+
       try {
         if (trip.tuyenDuong) {
           tuyenDuongData = await getTuyenDuongByIdInternal(trip.tuyenDuong);
         }
-      } catch (error) {
-
-      }
+      } catch (error) {}
       return { ...trip, soVeConLai, tuyenDuong: tuyenDuongData };
     });
 
@@ -362,7 +417,7 @@ export const getDanhSachChuyenXeTheoNgayVaDiaDiem = async (req, res) => {
           error.message
         );
       }
-      return { ...trip, price }; 
+      return { ...trip, price };
     });
 
     const tripsWithPrice = await Promise.all(tripsWithPricePromises);
@@ -372,10 +427,7 @@ export const getDanhSachChuyenXeTheoNgayVaDiaDiem = async (req, res) => {
       const hours = Math.floor(trip.tuyenDuong?.thoiGian / 60);
       const minutes = trip.tuyenDuong?.thoiGian % 60;
       const duration = `${hours}h ${minutes}p`;
-      const seatsLeft = `${Math.max(
-        0,
-        (trip.soVeConLai || 0)
-      )} chỗ trống`;
+      const seatsLeft = `${Math.max(0, trip.soVeConLai || 0)} chỗ trống`;
 
       const chiTiet = trip.tuyenDuong?.chiTietTuyen || [];
       const departureStation =

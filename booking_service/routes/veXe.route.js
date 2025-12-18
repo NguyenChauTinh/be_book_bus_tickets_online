@@ -15,17 +15,20 @@ import {
   filterVeXeMaster,
   getTicketsByUserId,
   printMultipleTickets,
+  checkActiveTickets,
+  getTicketDetailHistory
 } from "../controllers/veXe.controller.js";
 
 const veXeRouter = express.Router();
 
 veXeRouter.post("/", createTicket);
 veXeRouter.get("/tim-kiem", searchTickets);
-
+veXeRouter.post("/check-active-tickets", checkActiveTickets);
 veXeRouter.post("/in-ve", printMultipleTickets);
 veXeRouter.post("/filter-by-chuyen", filterVeXeMaster);
 veXeRouter.get("/chuyen-xe/:chuyenXeId", getTicketsByChuyenXeId);
 veXeRouter.get("/user/:userId", getTicketsByUserId);
+veXeRouter.get("/chi-tiet/:chiTietId/history", getTicketDetailHistory);
 veXeRouter.post(
   "/thong-ke/so-luong-theo-chuyen",
   getTicketCountsForMultipleTrips

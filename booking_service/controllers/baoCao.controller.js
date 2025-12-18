@@ -10,9 +10,8 @@ const runDoanhThuAggregation = async (req, res, customMatchStage) => {
         const limitNum = parseInt(req.query.limit) || 20;
         const skip = (pageNum - 1) * limitNum;
 
-        // --- 1. Xây dựng Match Stage CƠ BẢN ---
+        // --- 1. Xây dựng Match Stage (Giữ nguyên) ---
         const baseMatchStage = {};
-
         if (ngayBatDau && ngayKetThuc) {
             const start = new Date(ngayBatDau);
             start.setHours(0, 0, 0, 0);
@@ -20,22 +19,16 @@ const runDoanhThuAggregation = async (req, res, customMatchStage) => {
             end.setHours(23, 59, 59, 999);
             baseMatchStage["hoaDonInfo.createdAt"] = { $gte: start, $lte: end };
         }
-
         baseMatchStage["chiTiet.trangThaiChiTiet"] = { $ne: "DA_HUY" };
         baseMatchStage["hoaDonInfo.trangThai"] = "THANH_CONG";
 
-        // Lọc theo chuyến xe (nếu có)
         if (chuyenXeIds && chuyenXeIds.length > 0) {
             baseMatchStage["chiTiet.chuyenXe"] = { $in: chuyenXeIds };
         }
 
-        // --- 2. Kết hợp match cơ bản và match TÙY CHỈNH ---
-        const finalMatchStage = {
-            ...baseMatchStage,
-            ...customMatchStage,
-        };
+        const finalMatchStage = { ...baseMatchStage, ...customMatchStage };
 
-        // --- 3. Chạy Aggregation ---
+        // --- 2. Aggregation Pipeline ---
         const aggregationPipeline = [
             { $unwind: "$chiTiet" },
             {
@@ -50,6 +43,7 @@ const runDoanhThuAggregation = async (req, res, customMatchStage) => {
             { $match: finalMatchStage },
             {
                 $facet: {
+                    // A. Lấy dữ liệu phân trang (Giữ nguyên)
                     data: [
                         { $sort: { "hoaDonInfo.createdAt": -1 } },
                         { $skip: skip },
@@ -71,13 +65,37 @@ const runDoanhThuAggregation = async (req, res, customMatchStage) => {
                                         "$chiTiet.giamGia",
                                     ],
                                 },
-                                ngayChi: null,
-                                chi: { $literal: 0 },
-                                phiHuy: { $literal: 0 },
                             },
                         },
                     ],
+                    // B. Đếm tổng số dòng (Giữ nguyên)
                     metadata: [{ $count: "total" }],
+                    
+                    // C. [MỚI] Tính tổng doanh thu toàn bộ (Global Summary)
+                    summary: [
+                        {
+                            $group: {
+                                _id: null,
+                                totalThu: { $sum: "$chiTiet.giaVeCoBan" },
+                                totalPhuThu: { $sum: "$chiTiet.phuThu" },
+                                totalGiamGia: { $sum: "$chiTiet.giamGia" },
+                            }
+                        },
+                        {
+                            $project: {
+                                _id: 0,
+                                totalThu: 1,
+                                totalPhuThu: 1,
+                                totalGiamGia: 1,
+                                totalDoanhThu: {
+                                    $subtract: [
+                                        { $add: ["$totalThu", "$totalPhuThu"] },
+                                        "$totalGiamGia"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
                 },
             },
         ];
@@ -86,11 +104,22 @@ const runDoanhThuAggregation = async (req, res, customMatchStage) => {
 
         const data = result[0].data;
         const total = result[0].metadata[0]?.total || 0;
+        
+        // Lấy dữ liệu summary từ facet, nếu không có thì trả về 0
+        const summaryRaw = result[0].summary[0] || {};
+        const summary = {
+            totalTickets: total,
+            totalThu: summaryRaw.totalThu || 0, // Giá vé cơ bản
+            totalPhuThu: summaryRaw.totalPhuThu || 0,
+            totalGiamGia: summaryRaw.totalGiamGia || 0,
+            totalDoanhThu: summaryRaw.totalDoanhThu || 0, // Thực thu
+        };
 
         res.status(200).json({
             success: true,
             data: data,
             pagination: { total, page: pageNum, limit: limitNum },
+            summary: summary, 
         });
     } catch (error) {
         console.error("Lỗi khi lấy báo cáo doanh thu:", error);

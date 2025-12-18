@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: trip-schedule-service-container
-        image: asia-southeast1-docker.pkg.dev/smartbusproject-480408/smartbus-repo/trip-schedule-service:v8
+        image: asia-southeast1-docker.pkg.dev/smar-481605/smartbus-repo/trip-schedule-service:v1
         ports:
         - containerPort: 3001 
         

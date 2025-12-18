@@ -15,7 +15,7 @@ spec:
   # - hosts:
   #   - api.smartbus.io.vn
   #   - nhaxe.smartbus.io.vn
-    # secretName: mcrt-41d17dbf-b601-453a-aa33-59347394e506
+    # secretName: api-gateway-cert
   
   rules:
   # RULE DÀNH CHO API GATEWAY

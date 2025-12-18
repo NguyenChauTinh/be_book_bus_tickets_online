@@ -256,15 +256,15 @@ export const vnpay_return = async (req, res) => {
           console.error("Lỗi khi bắn sự kiện thanh toán:", rabbitmqError);
           // Không chặn luồng chính
         }
-        res.redirect(`${FRONTEND_URL}?success=true&orderId=${orderId}`);
+        res.redirect(`https://nhaxe.smartbus.io.vn/payment-result?success=true&orderId=${orderId}`);
       } else {
-        res.redirect(`${FRONTEND_URL}?success=false&orderId=${orderId}`);
+        res.redirect(`https://nhaxe.smartbus.io.vn/payment-result?success=false&orderId=${orderId}`);
       }
     } else {
-      res.redirect(`${FRONTEND_URL}?success=false&message=${verify.message}`);
+      res.redirect(`https://nhaxe.smartbus.io.vn/payment-result?success=false&message=${verify.message}`);
     }
   } catch (error) {
-    res.redirect(`${FRONTEND_URL}?success=false&message=Server+error`);
+    res.redirect(`https://nhaxe.smartbus.io.vn/payment-result?success=false&message=Server+error`);
   }
 };
 
@@ -340,6 +340,8 @@ export const createBookingAndPaymentUrl = async (req, res) => {
       vnp_ReturnUrl: VNP_RETURN_URL,
       // vnp_IpnUrl: VNP_IPN_URL,
     });
+
+    
 
     await session.commitTransaction();
 
