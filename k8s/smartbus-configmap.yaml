@@ -4,7 +4,7 @@ metadata:
   name: smartbus-config
 data:
   # Sử dụng IP thực tế của Memorystore for Redis. Cổng mặc định là 6379.
-  REDIS_URL_PROD: "redis://10.53.26.4:6379" 
+  REDIS_URL_PROD: "redis://10.107.30.140:6379" 
   RABBITMQ_URL_PROD: "amqp://guest:guest@rabbitmq-service:5672" 
   NOTIFICATION_EXCHANGE: "notification_events"
   NOTIFICATION_QUEUE: "email_notification_queue"

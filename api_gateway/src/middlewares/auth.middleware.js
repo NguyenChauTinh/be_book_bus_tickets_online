@@ -2,34 +2,33 @@ import jwt from "jsonwebtoken";
 import env from "../config/env.js";
 import redisClient from "../config/redis.js";
 
-
-
 const authMiddleware = async (req, res, next) => {
-  if (req.method == "OPTIONS" || 
-        req.path == "/" || 
-        req.path == "/info" || 
-        req.path == "/health" ||
-        req.path.startsWith("/favicon.ico") ||
-        req.path.startsWith("/socket.io")) 
-    {
-        return next();
-    }
-  
+  if (
+    req.method == "OPTIONS" ||
+    req.path == "/" ||
+    req.path == "/info" ||
+    req.path == "/health" ||
+    req.path.startsWith("/favicon.ico") ||
+    req.path.startsWith("/socket.io")
+  ) {
+    return next();
+  }
+
   const publicPaths = [
-  "/api/v1/tai-khoan/dang-nhap",
-  "/api/v1/tai-khoan/verify-otp",
-  "/api/v1/tai-khoan/dang-ky",
-  "/api/v1/tai-khoan/refresh-token",
-  "/api/v1/tai-khoan-khach-hang/register/request-otp",
-  "/api/v1/tai-khoan-khach-hang/login/request-otp",
-  "/api/v1/tai-khoan-khach-hang/login/verify",
-  "/api/v1/tai-khoan-khach-hang/register/complete",
-  "/api/v1/tai-khoan-khach-hang/login/complete",
-  "/api/v1/tai-khoan-khach-hang/refresh-token",
-  "/api/v1/payment/vnpay_return",
-  "/api/v1/payment/vnpay_ipn",
-  "/api/v1/chat",
-];
+    "/api/v1/tai-khoan/dang-nhap",
+    "/api/v1/tai-khoan/verify-otp",
+    "/api/v1/tai-khoan/dang-ky",
+    "/api/v1/tai-khoan/refresh-token",
+    "/api/v1/tai-khoan-khach-hang/register/request-otp",
+    "/api/v1/tai-khoan-khach-hang/login/request-otp",
+    "/api/v1/tai-khoan-khach-hang/login/verify",
+    "/api/v1/tai-khoan-khach-hang/register/complete",
+    "/api/v1/tai-khoan-khach-hang/login/complete",
+    "/api/v1/tai-khoan-khach-hang/refresh-token",
+    "/api/v1/payment/vnpay_return",
+    "/api/v1/payment/vnpay_ipn",
+    "/api/v1/chat",
+  ];
   const isPublic = publicPaths.some((path) => req.path.startsWith(path));
   if (isPublic) {
     return next();
@@ -50,15 +49,14 @@ const authMiddleware = async (req, res, next) => {
   }
 
   try {
-    const verified = jwt.verify(
-      token,
-      env.JWT_SECRET
-    );
+    const verified = jwt.verify(token, env.JWT_SECRET);
 
-    const userId = verified.userId || verified.id;
+    const userId = verified.userId;
+    const role = verified.phanQuyen;
+    const userName = verified.tenNhanVien;
     const sessionKey = `session:${userId}`;
     const sessionExists = await redisClient.get(sessionKey);
-    
+
     if (!sessionExists) {
       return res.status(401).json({
         success: false,
@@ -66,10 +64,11 @@ const authMiddleware = async (req, res, next) => {
       });
     }
 
-    req.headers["x-user-id"] = userId;
-    req.headers["x-user-role"] = verified.role || "user";
-    req.headers["x-user-email"] = verified.email || "";
-
+    req.headers["x-user-id"] = String(userId || "");
+    req.headers["x-user-role"] = String(role || "");
+    req.headers["x-user-name"] = encodeURIComponent(userName || "Unknown");
+    req.headers["x-user-username"] = String(verified.tenTaiKhoan || "");
+    
     next();
   } catch (err) {
     if (err.name === "TokenExpiredError") {

@@ -1,20 +1,41 @@
-import VeXe from "../models/veXe.model.js";
-import HoaDon from "../models/hoaDon.model.js";
 import mongoose from "mongoose";
 import axios from "axios";
 import moment from "moment";
+import redisClient from "../config/redis.js";
+import PDFDocument from "pdfkit";
+import path from "path";
+
+import VeXe from "../models/veXe.model.js";
+import HoaDon from "../models/hoaDon.model.js";
 import Notification from "../models/notification.model.js";
 import { URL_TRIP_SERVICE } from "../config/env.js";
 import {
   publishEvent,
   publishSeatUpdateCommand,
 } from "../utils/rabbitmq.helper.js";
-import redisClient from "../config/redis.js";
-import PDFDocument from "pdfkit";
-import path from "path";
+import { logFieldChanges } from "../utils/history.helper.js";
 import { fileURLToPath } from "url";
+import LichSuVeXe from "../models/lichSuVeXe.model.js";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const FIELD_LABELS = {
+  tenKhachHang: "Tên khách hàng",
+  soDienThoai: "Số điện thoại",
+  diemDon: "Điểm đón",
+  diemTra: "Điểm trả",
+  diemDonTC: "Trung chuyển đón",
+  diemTraTC: "Trung chuyển trả",
+  giaVeCoBan: "Giá vé",
+  phuThu: "Phụ thu",
+  giamGia: "Giảm giá",
+  hinhThucThanhToan: "Hình thức thanh toán",
+  trangThaiChiTiet: "Trạng thái ghế",
+  ngayKhoiHanh: "Ngày khởi hành",
+  chuyenXe: "Chuyến xe",
+  maChoNgoi: "Số ghế"
+};
 
 const generateMaVe = () => {
   const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -156,6 +177,12 @@ export const createTicket = async (req, res) => {
       departureDate,
       selectedPickup,
     } = req.body;
+
+    const userIdTuGateway = req.headers["x-user-id"];
+    const tenTaiKhoanGateway = decodeURIComponent(
+      req.headers["x-user-username"] || "smartbus.mob"
+    );
+
     if (!chiTiet || chiTiet.length === 0) {
       return res.status(400).json({
         success: false,
@@ -224,6 +251,18 @@ export const createTicket = async (req, res) => {
         ? "THANH_TOAN_MOT_PHAN"
         : "CHUA_THANH_TOAN";
     const savedTicket = await newTicket.save({ session });
+
+    for (const detail of savedTicket.chiTiet) {
+      await logFieldChanges({
+        ticketId: savedTicket._id,
+        chiTietId: detail._id,
+        oldData: {},
+        newData: detail.toObject(),
+        action: "CREATE",
+        nhanVien: tenTaiKhoanGateway,
+        session,
+      });
+    }
     await session.commitTransaction();
 
     try {
@@ -295,7 +334,7 @@ export const createTicket = async (req, res) => {
           maVe: savedTicket.maVe,
           seats: chiTiet.map((ct) => ct.maChoNgoi),
           updatedAt: new Date(),
-          bookedBy: userId || nhanVienTao
+          bookedBy: userId || nhanVienTao,
         });
       }
     } catch (socketError) {
@@ -382,6 +421,9 @@ export const updateMultipleTicketDetails = async (req, res) => {
   try {
     const { ticketId } = req.params;
     const { updatesList, maGiamGia, tenGiamGia } = req.body;
+    const tenTaiKhoanGateway = decodeURIComponent(
+      req.headers["x-user-username"] || "Smartbus.mob"
+    );
     if (
       !mongoose.Types.ObjectId.isValid(ticketId) ||
       !Array.isArray(updatesList) ||
@@ -451,6 +493,8 @@ export const updateMultipleTicketDetails = async (req, res) => {
 
       const chiTiet = ticket.chiTiet.id(chiTietId);
       if (chiTiet) {
+        const oldSnapshot = chiTiet.toObject();
+
         if (
           updates.trangThaiChiTiet === "DA_THANH_TOAN" &&
           updates.hinhThucThanhToan === "VNPAY"
@@ -461,6 +505,7 @@ export const updateMultipleTicketDetails = async (req, res) => {
         Object.keys(updates).forEach((key) => {
           if (allowedUpdates.includes(key)) {
             chiTiet[key] = updates[key];
+
             if (["giaVeCoBan", "phuThu", "giamGia"].includes(key)) {
               hasPriceChanged = true;
             }
@@ -468,6 +513,14 @@ export const updateMultipleTicketDetails = async (req, res) => {
               hasPaymentInfoChanged = true;
             }
           }
+        });
+        await logFieldChanges({
+          ticketId: ticket._id,
+          chiTietId: chiTiet._id,
+          oldData: oldSnapshot,
+          newData: chiTiet.toObject(),
+          action: "UPDATE",
+          nhanVien: tenTaiKhoanGateway,
         });
       }
     }
@@ -478,6 +531,7 @@ export const updateMultipleTicketDetails = async (req, res) => {
     }
 
     await ticket.save();
+
     res.status(200).json({
       success: true,
       message: "Cập nhật thông tin chi tiết vé thành công.",
@@ -696,7 +750,9 @@ export const createManualInvoice = async (req, res) => {
     giamGia,
   } = req.body;
   const { ticketId } = req.params;
-
+  const tenTaiKhoanGateway = decodeURIComponent(
+    req.headers["x-user-username"] || "Smartbus.mob"
+  );
   const session = await mongoose.startSession();
   session.startTransaction();
 
@@ -754,6 +810,8 @@ export const createManualInvoice = async (req, res) => {
     for (const detailId of chiTietIds) {
       const chiTiet = ticket.chiTiet.id(detailId);
       if (chiTiet) {
+        const oldSnapshot = chiTiet.toObject();
+
         chiTiet.trangThaiChiTiet = "DA_THANH_TOAN";
         chiTiet.hinhThucThanhToan = phuongThuc;
         chiTiet.nhanVienThuTien = nhanVienThuTien;
@@ -761,6 +819,16 @@ export const createManualInvoice = async (req, res) => {
           chiTiet.donViThanhToan = donViThanhToan;
         }
         chiTiet.hoaDon = newHoaDon._id;
+
+        await logFieldChanges({
+          ticketId: ticket._id,
+          chiTietId: chiTiet._id,
+          oldData: oldSnapshot,
+          newData: chiTiet.toObject(),
+          action: "PAYMENT",
+          nhanVien: tenTaiKhoanGateway,
+          session,
+        });
       }
     }
 
@@ -773,6 +841,7 @@ export const createManualInvoice = async (req, res) => {
         : "THANH_TOAN_MOT_PHAN";
 
     await ticket.save({ session });
+
     await session.commitTransaction();
     res.status(200).json({
       code: 200,
@@ -860,23 +929,15 @@ export const addDetailToTicket = async (req, res) => {
   }
 };
 
-/**
- * @desc [HÀM MỚI & NÂNG CẤP] Chuyển hoặc Hoán đổi (swap) chi tiết vé.
- * Tự động xử lý 2 trường hợp:
- * 1. Nếu ghế đích trống -> Chuyển vé (Move).
- * 2. Nếu ghế đích đã có người -> Hoán đổi thông tin 2 vé (Swap).
- * Hỗ trợ thao tác trong cùng một chuyến hoặc giữa các chuyến khác nhau.
- * @route PUT /api/ve-xe/details/unified-transfer-swap
- * @access Admin
- * @body { transfers: [{ chiTietId: "...", newChuyenXeId: "...", newSeatCode: "..." }] }
- */
 export const unifiedTransferOrSwapDetails = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
     const { transfers } = req.body;
-
+    const tenTaiKhoanGateway = decodeURIComponent(
+      req.headers["x-user-username"] || "Smartbus.mob"
+    );
     if (!transfers || !Array.isArray(transfers) || transfers.length === 0) {
       throw new Error("Dữ liệu không hợp lệ.");
     }
@@ -921,6 +982,7 @@ export const unifiedTransferOrSwapDetails = async (req, res) => {
       if (!sourceDetail) {
         throw new Error(`Không tìm thấy vé nguồn với ID: ${chiTietId}`);
       }
+      const sourceOldSnapshot = sourceDetail.toObject();
 
       const targetSeatKey = `${newChuyenXeId}-${newSeatCode}`;
       const targetDetail = seatToDetailMap.get(targetSeatKey);
@@ -940,12 +1002,31 @@ export const unifiedTransferOrSwapDetails = async (req, res) => {
         // Cập nhật vé đích = thông tin gốc của vé nguồn
         targetDetail.chuyenXe = originalSourceChuyenXe;
         targetDetail.maChoNgoi = originalSourceSeatCode;
+
+        await logFieldChanges({
+          ticketId: ticketOfDetailMap.get(targetDetail._id.toString())._id,
+          chiTietId: targetDetail._id,
+          oldData: targetOldSnapshot,
+          newData: targetDetail.toObject(),
+          action: "SWAP_TARGET",
+          nhanVien: tenTaiKhoanGateway,
+          session,
+        });
       } else {
         // TRƯỜNG HỢP 1: CHUYỂN (MOVE) VÀO CHỖ TRỐNG
         sourceDetail.chuyenXe = newChuyenXeId;
         sourceDetail.maChoNgoi = newSeatCode;
       }
       sourceDetail.trangThaiChiTiet = "DA_CHUYEN";
+      await logFieldChanges({
+        ticketId: ticketOfDetailMap.get(chiTietId)._id,
+        chiTietId: sourceDetail._id,
+        oldData: sourceOldSnapshot,
+        newData: sourceDetail.toObject(),
+        action: "MOVE",
+        nhanVien: tenTaiKhoanGateway,
+        session,
+      });
     }
 
     // --- BƯỚC 4: LƯU TẤT CẢ CÁC VÉ ĐÃ THAY ĐỔI ---
@@ -1566,12 +1647,10 @@ export const printMultipleTickets = async (req, res) => {
       );
 
       doc.moveDown(1);
-      doc
-        .fontSize(8)
-        .text("Vui lòng đến trước giờ đi 15 phút.", {
-          italic: true,
-          align: "center",
-        });
+      doc.fontSize(8).text("Vui lòng đến trước giờ đi 15 phút.", {
+        italic: true,
+        align: "center",
+      });
       doc.text("Chúc quý khách thượng lộ bình an!", {
         italic: true,
         align: "center",
@@ -1623,34 +1702,99 @@ export const checkActiveTickets = async (req, res) => {
     const { chuyenXeId } = req.body;
 
     if (!chuyenXeId) {
-      return res.status(400).json({ success: false, message: "Thiếu chuyenXeId" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Thiếu chuyenXeId" });
     }
 
     const activeTicket = await VeXe.findOne({
-      "chiTiet": {
+      chiTiet: {
         $elemMatch: {
           chuyenXe: chuyenXeId,
-          trangThaiChiTiet: { $in: ["DAT_CHO", "DA_THANH_TOAN", "DA_CHUYEN"] }
-        }
-      }
+          trangThaiChiTiet: { $in: ["DAT_CHO", "DA_THANH_TOAN", "DA_CHUYEN"] },
+        },
+      },
     }).select("_id");
 
     if (activeTicket) {
       return res.status(200).json({
         success: true,
         hasActiveTickets: true,
-        message: "Chuyến xe đang có vé hoạt động."
+        message: "Chuyến xe đang có vé hoạt động.",
       });
     }
 
     return res.status(200).json({
       success: true,
       hasActiveTickets: false,
-      message: "Chuyến xe không có vé hoạt động."
+      message: "Chuyến xe không có vé hoạt động.",
     });
-
   } catch (error) {
     console.error("Lỗi check active tickets:", error);
     res.status(500).json({ success: false, message: "Lỗi Server Booking" });
+  }
+};
+
+export const getTicketDetailHistory = async (req, res) => {
+  try {
+    const { chiTietId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(chiTietId)) {
+      return res.status(400).json({ success: false, message: "ID chi tiết vé không hợp lệ." });
+    }
+
+    const logs = await LichSuVeXe.find({ chiTietVeId: chiTietId })
+      .sort({ thoiGian: -1 })
+      .lean();
+
+    const formattedLogs = logs.map((log) => {
+      let message = "";
+      const changes = [];
+
+      if (log.action === "CREATE") {
+        message = "Khởi tạo đặt vé thành công";
+      } else if (Array.isArray(log.details)) {
+        // Đối với UPDATE/PAYMENT/MOVE, log.details chứa mảng {field, old, new} [cite: 3]
+        log.details.forEach((item) => {
+          const label = FIELD_LABELS[item.field] || item.field;
+          let oldVal = item.old || "Trống";
+          let newVal = item.new || "Trống";
+
+          if (item.field === "ngayKhoiHanh") {
+            oldVal = oldVal !== "Trống" ? moment(oldVal).format("DD/MM/YYYY") : oldVal;
+            newVal = newVal !== "Trống" ? moment(newVal).format("DD/MM/YYYY") : newVal;
+          }
+
+          changes.push({
+            field: item.field,
+            label,
+            old: oldVal,
+            new: newVal,
+            text: `${label}: "${oldVal}" → "${newVal}"`
+          });
+        });
+        message = `Cập nhật ${changes.length} thông tin`;
+      } else if (log.action === "PAYMENT") {
+        message = "Ghi nhận thanh toán";
+      }
+
+      return {
+        _id: log._id,
+        action: log.action,
+        nhanVien: log.nhanVienThucHien,
+        thoiGian: log.thoiGian,
+        message,
+        changes,
+        fullData: log.action === "CREATE" ? log.details : null
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      data: formattedLogs
+    });
+  } catch (error) {
+    console.error("Lỗi khi lấy lịch sử chi tiết vé:", error);
+    res.status(500).json({ success: false, message: "Lỗi máy chủ." });
   }
 };
